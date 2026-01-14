@@ -105,3 +105,15 @@ export interface SessionAnalytics {
   /** Timestamp when these analytics were computed */
   computedAt: string;
 }
+
+/**
+ * Represents an active session being tracked for live viewer counts.
+ */
+export interface ActiveSession {
+  /** ID of the session */
+  sessionId: string;
+  /** Number of currently active viewers */
+  viewerCount: number;
+  /** Timestamp when this record was last updated */
+  updatedAt: string;
+}
