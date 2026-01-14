@@ -6,14 +6,19 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import ChatMessage from '@/components/ChatMessage';
 import useChat from '@/hooks/useChat';
+import PollVoteCard from '@/components/PollVoteCard';
+import { useAuth } from '@/contexts/AuthContext';
+import type { Poll } from '@/lib/types';
 
 
 interface ChatSidebarProps {
   sessionId: string;
   isAdmin: boolean;
+  activePoll: Poll | null;
 }
 
-export default function ChatSidebar({ sessionId, isAdmin }: ChatSidebarProps) {
+export default function ChatSidebar({ sessionId, isAdmin, activePoll }: ChatSidebarProps) {
+  const { user } = useAuth();
   const { messages, loading, sendMessage, pinMessage, deleteMessage } = useChat(sessionId);
   const [messageInput, setMessageInput] = useState('');
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -65,6 +70,13 @@ export default function ChatSidebar({ sessionId, isAdmin }: ChatSidebarProps) {
         onScrollCapture={handleScroll} 
       >
         <div className="space-y-4 pr-4"> 
+          {activePoll && user && (
+            <PollVoteCard 
+              poll={activePoll} 
+              userId={user.uid} 
+            />
+          )}
+
           {loading ? (
             <div className="flex justify-center items-center py-10">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

@@ -1,6 +1,6 @@
 import { collection, doc, CollectionReference, DocumentReference } from 'firebase/firestore';
 import { db } from './firebase';
-import type { User, Session, Message, ViewerSession, ActiveSession, SessionAnalytics } from './types';
+import type { User, Session, Message, ViewerSession, ActiveSession, SessionAnalytics, Poll, PollVote } from './types';
 
 /**
  * Collection reference helpers
@@ -19,6 +19,11 @@ export const viewerSessionsCollection = collection(db, 'viewer_sessions') as Col
 export const activeSessionsCollection = collection(db, 'active_sessions') as CollectionReference<ActiveSession>;
 
 export const sessionAnalyticsCollection = collection(db, 'session_analytics') as CollectionReference<SessionAnalytics>;
+
+export const pollsCollection = collection(db, 'polls') as CollectionReference<Poll>;
+
+export const pollVotesCollection = collection(db, 'poll_votes') as CollectionReference<PollVote>;
+
 
 /**
  * Document path helpers

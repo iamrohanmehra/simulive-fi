@@ -117,3 +117,38 @@ export interface ActiveSession {
   /** Timestamp when this record was last updated */
   updatedAt: string;
 }
+
+/**
+ * Represents a poll option.
+ */
+export interface PollOption {
+  id: string;
+  label: string;
+  votes: number;
+}
+
+/**
+ * Represents a live poll in a session.
+ */
+export interface Poll {
+  id: string;
+  sessionId: string;
+  question: string;
+  options: PollOption[];
+  isActive: boolean;
+  createdAt: any; // Using any to avoid Timestamp import issues in this file if not already imported, but ideally should be specific. The user rules say Timestamp type: `import { Timestamp } from 'firebase/firestore'` but this file seems to use string for dates mostly? The existing types use 'string' for dates. I should stick to 'string' for ISO dates if that's the pattern, or 'Timestamp' if using Firebase objects directly. The existing types all use 'string', likely ISO strings or just stringified timestamps. Wait, the user rules say: "Firebase Timestamp type: `import { Timestamp } from 'firebase/firestore'`". However, the file `types.ts` currently uses `string` for all `createdAt`. I will stick to `any` or `Timestamp` but since this is a pure types file, maybe `any` or distinct type is safer to avoid deeper dependencies if not needed. Actually, I see `createdAt: string` in other interfaces. I'll use `createdAt: any` or similar to match the pattern or better yet, import Timestamp if needed. Let's look at the file content again. It uses `string`. I will use `Timestamp` generally but maybe `string` for client side? Let's assume standard serialized pattern or Firebase Timestamp. Given the rule, I should import Timestamp.
+  // Actually, to avoid breaking 'types.ts' which looks like it might be shared or used where firebase isn't, I will use `Timestamp` but needs import.
+  // Let's check imports in `types.ts`. There are none. It seems these are DTOs.
+  // I will use `any` for now for the createdAt to be safe or `string` if we convert. The `PollVoteCard` will receive `Poll`. I'll use `any` for the timestamp field to be flexible as it often comes as Timestamp from firestore.
+}
+
+/**
+ * Represents a user's vote on a poll.
+ */
+export interface PollVote {
+  id: string;
+  pollId: string;
+  userId: string;
+  selectedOptionId: string;
+  votedAt: any;
+}

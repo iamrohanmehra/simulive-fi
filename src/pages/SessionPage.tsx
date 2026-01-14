@@ -11,6 +11,9 @@ import ChatSidebar from '@/components/ChatSidebar';
 import SessionEndedScreen from '@/components/SessionEndedScreen';
 import EmailVerificationModal from '@/components/EmailVerificationModal';
 import JoinSessionModal from '@/components/JoinSessionModal';
+import { pollsCollection } from '@/lib/firestore-collections';
+import { query, where, onSnapshot } from 'firebase/firestore';
+import type { Poll } from '@/lib/types';
 
 const SessionPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -21,6 +24,8 @@ const SessionPage = () => {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
   const [userData, setUserData] = useState<{ name: string; avatar: string } | null>(null);
+  const [activePoll, setActivePoll] = useState<Poll | null>(null);
+  const [displayedPoll, setDisplayedPoll] = useState<Poll | null>(null);
 
   // 1. Session State Management
   const { sessionState, session, loading } = useSessionState(sessionId || '');
@@ -68,6 +73,57 @@ const SessionPage = () => {
     setHasJoined(true);
     setShowJoinModal(false);
   };
+
+  // Poll sync logic
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const q = query(
+      pollsCollection, 
+      where('sessionId', '==', sessionId), 
+      where('isActive', '==', true)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        // Active poll exists
+        const data = snapshot.docs[0].data();
+        const poll = { ...data, id: snapshot.docs[0].id } as Poll;
+        setActivePoll(poll);
+        setDisplayedPoll(poll);
+      } else {
+        // No active poll
+        setActivePoll(null);
+        // If we had a displayed poll, keep it for 10s then clear
+        // We only start timer if we have a displayed poll and just lost active poll
+        // But here we just set activePoll to null. 
+        // We need a derived effect or just logic here.
+        // If we currently have a displayed poll, start a timeout to clear it.
+        // BUT, we need to distinguish between "just loaded empty" and "was active, now empty".
+        // State updates are async, so let's rely on an effect that watches activePoll.
+      }
+    });
+
+    return () => unsubscribe();
+  }, [sessionId]);
+
+  // Handle poll grace period
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+
+    if (activePoll) {
+      setDisplayedPoll(activePoll);
+    } else {
+      // Poll inactive. If we have a displayed poll, wait 10s to clear it
+      if (displayedPoll) {
+        timeout = setTimeout(() => {
+          setDisplayedPoll(null);
+        }, 10000);
+      }
+    }
+
+    return () => clearTimeout(timeout);
+  }, [activePoll]);
 
   if (loading) {
     return (
@@ -148,6 +204,7 @@ const SessionPage = () => {
                   <ChatSidebar 
                     sessionId={sessionId} 
                     isAdmin={false} 
+                    activePoll={displayedPoll}
                   />
                 </div>
               </div>
