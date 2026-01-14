@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Users, Loader2, Play, BarChart2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { updateDoc } from 'firebase/firestore';
 
 import { 
   Card, 
@@ -9,6 +11,7 @@ import {
   CardTitle 
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 import useSessionState from '@/hooks/useSessionState';
 import useCurrentViewers from '@/hooks/useCurrentViewers';
@@ -18,20 +21,44 @@ import DirectReplyPanel from '@/components/DirectReplyPanel';
 import AdminChatFeed from '@/components/AdminChatFeed';
 import PollCreator from '@/components/PollCreator';
 import ActivePollsPanel from '@/components/ActivePollsPanel';
+import { sessionDoc } from '@/lib/firestore-collections';
+import computeSessionAnalytics from '@/lib/compute-analytics';
 
 const LiveAdminPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
+  const navigate = useNavigate();
   const { sessionState, session, loading: sessionLoading } = useSessionState(sessionId || '');
   const { viewerCount } = useCurrentViewers(sessionId || '');
   
   // Chat hooks
-  // Chat hooks only needed for DirectReplyPanel now, AdminChatFeed deals with its own
   const { messages } = useChat(sessionId || '');
 
   const [selectedUserId, setSelectedUserId] = useState<string>('');
 
   const handleReplyUser = (userId: string) => {
     setSelectedUserId(userId);
+  };
+
+  const handleEndSession = async () => {
+    if (!sessionId) return;
+    try {
+      if (!confirm('Are you sure you want to end this session? This action cannot be undone.')) return;
+
+      toast.info('Ending session...');
+      
+      // 1. Mark session as ended
+      await updateDoc(sessionDoc(sessionId), { isLive: false });
+      
+      // 2. Compute analytics
+      toast.info('Computing analytics...');
+      await computeSessionAnalytics(sessionId);
+      
+      toast.success('Session ended and analytics computed!');
+      navigate(`/analytics/${sessionId}`);
+    } catch (error) {
+      console.error('Failed to end session:', error);
+      toast.error('Failed to end session properly');
+    }
   };
 
   if (sessionLoading) {
@@ -110,6 +137,10 @@ const LiveAdminPage = () => {
             selectedUserId={selectedUserId}
             onUserSelect={setSelectedUserId}
           />
+
+          <div className="flex justify-end">
+             <Button variant="destructive" size="lg" className="w-full" onClick={handleEndSession}>End Session</Button>
+          </div>
         </div>
 
         {/* Right Column: Chat Feed */}
