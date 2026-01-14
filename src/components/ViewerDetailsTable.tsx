@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { format } from 'date-fns';
 import { ArrowUpDown, Download, Trophy } from 'lucide-react';
 import type { ViewerSession } from '@/lib/types';
+import { formatTimestamp, formatDuration } from '@/lib/format-time';
 import {
   Table,
   TableBody,
@@ -23,14 +23,7 @@ interface ViewerDetailsTableProps {
   sessionId?: string;
 }
 
-function formatDuration(seconds: number) {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
 
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m ${secs}s`;
-}
 
 type SortField = 'duration' | 'joinedAt';
 
@@ -76,8 +69,8 @@ export default function ViewerDetailsTable({ viewers, sessionDuration, sessionId
       
       return [
         v.email || 'Guest',
-        v.joinedAt ? format(new Date(v.joinedAt), 'PPP p') : '',
-        v.leftAt ? format(new Date(v.leftAt), 'PPP p') : 'Active',
+        v.joinedAt ? formatTimestamp(new Date(v.joinedAt)) : '',
+        v.leftAt ? formatTimestamp(new Date(v.leftAt)) : 'Active',
         duration.toFixed(0),
         formatDuration(duration),
         `${percentage.toFixed(0)}%`
@@ -165,10 +158,10 @@ export default function ViewerDetailsTable({ viewers, sessionDuration, sessionId
                         </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {viewer.joinedAt ? format(new Date(viewer.joinedAt), 'MMM d, p') : '--'}
+                        {viewer.joinedAt ? formatTimestamp(new Date(viewer.joinedAt)) : '--'}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {viewer.leftAt ? format(new Date(viewer.leftAt), 'MMM d, p') : <Badge variant="outline" className="text-green-500 border-green-500/50">Active</Badge>}
+                        {viewer.leftAt ? formatTimestamp(new Date(viewer.leftAt)) : <Badge variant="outline" className="text-green-500 border-green-500/50">Active</Badge>}
                       </TableCell>
                       <TableCell className="font-medium">
                         {formatDuration(duration)}

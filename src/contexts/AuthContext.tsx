@@ -11,6 +11,7 @@ import { setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth } from '@/lib/firebase';
 import { userDoc } from '@/lib/firestore-collections';
 import type { User } from '@/lib/types';
+import { toast } from 'sonner';
 
 /**
  * Response type for email verification API
@@ -123,7 +124,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
-      console.error('Error signing in:', error);
+      toast.error('Failed to sign in. Please check your credentials.');
       throw error;
     }
   };
@@ -160,7 +161,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
         createdAt: serverTimestamp()
       } as unknown as User);
     } catch (error) {
-      console.error('Error signing up:', error);
+      toast.error('Failed to create account. Please try again.');
       throw error;
     }
   };
@@ -172,7 +173,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
     try {
       await firebaseSignOut(auth);
     } catch (error) {
-      console.error('Error signing out:', error);
+      toast.error('Failed to sign out.');
       throw error;
     }
   };
@@ -190,7 +191,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
       const apiUrl = import.meta.env.VITE_CODEKARO_API_URL;
       
       if (!apiUrl) {
-        console.error('VITE_CODEKARO_API_URL is not configured');
+        toast.error('Verification service not configured');
         return { verified: false };
       }
 
@@ -203,7 +204,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
       });
 
       if (!response.ok) {
-        console.error('Email verification API error:', response.status);
+        toast.error('Verification failed. Please try again.');
         return { verified: false };
       }
 
@@ -228,7 +229,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
               avatarUrl: data.userData.avatar || null,
             }, { merge: true });
           } catch (firestoreError) {
-            console.error('Error updating Firestore user document:', firestoreError);
+            // Quietly fail for firestore update as user is locally verified
             // Don't fail the verification if Firestore update fails
           }
         }
@@ -245,7 +246,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
 
       return { verified: false };
     } catch (error) {
-      console.error('Error verifying email with API:', error);
+      toast.error('Error connecting to verification service');
       return { verified: false };
     }
   };

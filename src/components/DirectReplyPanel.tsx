@@ -93,8 +93,7 @@ const DirectReplyPanel = ({
       
       toast.success(`Sent private message to ${targetName}`);
       setReplyText('');
-    } catch (error) {
-      console.error('Failed to send reply:', error);
+    } catch (_error) {
       // Hook handles toast error
     } finally {
       setSending(false);

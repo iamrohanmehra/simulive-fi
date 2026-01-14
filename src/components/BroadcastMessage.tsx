@@ -44,8 +44,7 @@ const BroadcastMessage = ({ sessionId, onSent }: BroadcastMessageProps) => {
       if (onSent) {
         onSent();
       }
-    } catch (error) {
-      console.error('Failed to send broadcast:', error);
+    } catch (_error) {
       toast.error('Failed to send broadcast');
     } finally {
       setSending(false);

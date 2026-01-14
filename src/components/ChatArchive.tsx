@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 interface ChatArchiveProps {
   sessionId: string;
@@ -119,9 +120,7 @@ export default function ChatArchive({ sessionId }: ChatArchiveProps) {
         {/* Messages list */}
         <ScrollArea className="h-[400px] rounded-md border p-4">
           {loading ? (
-             <div className="flex h-full items-center justify-center">
-               <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
-             </div>
+            <LoadingSpinner size="md" text="Loading history..." />
           ) : filteredMessages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
               <MessageSquare className="mb-2 h-8 w-8 opacity-20" />

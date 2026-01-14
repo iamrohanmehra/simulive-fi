@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, LogOut, User as UserIcon, LayoutDashboard, X } from 'lucide-react';
+import { Menu, LogOut, LayoutDashboard, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Navigation() {
@@ -44,7 +44,7 @@ export default function Navigation() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
       <div className="container flex h-14 items-center justify-between px-4 sm:px-8">
         {/* Logo / Brand */}
         <div className="flex items-center gap-2 font-bold text-xl">

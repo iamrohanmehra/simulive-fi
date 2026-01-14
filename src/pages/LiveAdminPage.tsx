@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Users, Loader2, Play, BarChart2 } from 'lucide-react';
+import { Users, Play, BarChart2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { updateDoc } from 'firebase/firestore';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 import { 
   Card, 
@@ -23,6 +24,7 @@ import PollCreator from '@/components/PollCreator';
 import ActivePollsPanel from '@/components/ActivePollsPanel';
 import { sessionDoc } from '@/lib/firestore-collections';
 import computeSessionAnalytics from '@/lib/compute-analytics';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 const LiveAdminPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -34,16 +36,19 @@ const LiveAdminPage = () => {
   const { messages } = useChat(sessionId || '');
 
   const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [showEndSessionDialog, setShowEndSessionDialog] = useState(false);
 
   const handleReplyUser = (userId: string) => {
     setSelectedUserId(userId);
   };
 
-  const handleEndSession = async () => {
+  const handleEndSessionClick = () => {
+    setShowEndSessionDialog(true);
+  };
+
+  const handleEndSessionConfirm = async () => {
     if (!sessionId) return;
     try {
-      if (!confirm('Are you sure you want to end this session? This action cannot be undone.')) return;
-
       toast.info('Ending session...');
       
       // 1. Mark session as ended
@@ -62,11 +67,7 @@ const LiveAdminPage = () => {
   };
 
   if (sessionLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingSpinner size="lg" text="Loading session..." className="min-h-screen" />;
   }
 
   if (!sessionId || !session) {
@@ -139,7 +140,7 @@ const LiveAdminPage = () => {
           />
 
           <div className="flex justify-end">
-             <Button variant="destructive" size="lg" className="w-full" onClick={handleEndSession}>End Session</Button>
+             <Button variant="destructive" size="lg" className="w-full" onClick={handleEndSessionClick}>End Session</Button>
           </div>
         </div>
 
@@ -149,6 +150,16 @@ const LiveAdminPage = () => {
           onReply={handleReplyUser}
         />
       </div>
+
+      <ConfirmDialog
+        isOpen={showEndSessionDialog}
+        onClose={() => setShowEndSessionDialog(false)}
+        onConfirm={handleEndSessionConfirm}
+        title="End Session?"
+        description="Are you sure you want to end this session? This action cannot be undone and will stop the stream for all viewers."
+        confirmText="End Session"
+        cancelText="Cancel"
+      />
     </div>
   );
 };

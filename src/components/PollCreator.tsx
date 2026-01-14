@@ -91,8 +91,7 @@ const PollCreator = ({ sessionId, onPollCreated }: PollCreatorProps) => {
       if (onPollCreated) {
         onPollCreated();
       }
-    } catch (error) {
-      console.error('Failed to create poll:', error);
+    } catch (_error) {
       toast.error('Failed to create poll');
     } finally {
       setCreating(false);

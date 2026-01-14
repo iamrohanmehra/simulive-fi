@@ -1,4 +1,5 @@
-import { formatDistanceToNow } from 'date-fns';
+import { generateColorFromName } from '@/lib/username-colors';
+import { formatRelativeTime } from '@/lib/format-time';
 import { Pin, Trash2, Reply } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -14,49 +15,16 @@ interface ChatMessageProps {
   onReply?: (messageId: string) => void;
 }
 
-const COLORS = [
-  'text-blue-400',
-  'text-green-400',
-  'text-purple-400',
-  'text-yellow-400',
-  'text-pink-400',
-  'text-indigo-400',
-  'text-orange-400',
-  'text-teal-400',
-];
-
-const BG_COLORS = [
-  'bg-blue-400/20',
-  'bg-green-400/20',
-  'bg-purple-400/20',
-  'bg-yellow-400/20',
-  'bg-pink-400/20',
-  'bg-indigo-400/20',
-  'bg-orange-400/20',
-  'bg-teal-400/20',
-];
-
-function getHash(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash);
-}
-
-export default function ChatMessage({ 
+const ChatMessage = ({ 
   message, 
   isAdmin, 
   onPin, 
   onDelete,
   onReply 
-}: ChatMessageProps) {
-  const hash = getHash(message.userName || 'Anonymous');
-  const colorIndex = hash % COLORS.length;
-  const colorClass = COLORS[colorIndex];
-  const bgClass = BG_COLORS[colorIndex];
+}: ChatMessageProps) => {
+  const colorClass = generateColorFromName(message.userName || 'Anonymous');
+  // Derive background color from text color class (e.g., text-blue-400 -> bg-blue-400/20)
+  const bgClass = colorClass.replace('text-', 'bg-') + '/20';
   
   const initials = message.userName
     .split(' ')
@@ -106,7 +74,7 @@ export default function ChatMessage({
           )}
 
           <span className="text-[10px] text-muted-foreground ml-auto whitespace-nowrap">
-            {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
+            {formatRelativeTime(new Date(message.createdAt))}
           </span>
         </div>
 
@@ -158,4 +126,6 @@ export default function ChatMessage({
       )}
     </div>
   );
-}
+};
+
+export default ChatMessage;

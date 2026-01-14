@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function LoginPage() {
-  const { user, signInWithEmail } = useAuth();
+  const { user } = useAuth();
   
   if (user) {
     return <Navigate to="/sessions" replace />;

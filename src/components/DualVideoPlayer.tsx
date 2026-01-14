@@ -4,6 +4,7 @@ import type { MediaPlayerElement } from 'vidstack';
 import 'vidstack/styles/base.css';
 import { useServerTimeSync } from '@/hooks/useServerTimeSync';
 import type { Session } from '@/lib/types';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 interface DualVideoPlayerProps {
   session: Session;
@@ -59,8 +60,8 @@ const DualVideoPlayer = ({ session }: DualVideoPlayerProps) => {
 
   if (!isSynced) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-black text-white">
-        Loading live stream...
+      <div className="w-full h-full flex items-center justify-center bg-black">
+        <LoadingSpinner size="lg" text="Loading live stream..." className="text-white" />
       </div>
     );
   }

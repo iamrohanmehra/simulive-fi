@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { format } from 'date-fns';
+
 import { toast } from 'sonner';
 import { getDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { Users, Clock, ArrowLeft, Calendar, TrendingUp, Timer, MessageSquare } from 'lucide-react';
@@ -15,15 +15,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import ViewerDetailsTable from '@/components/ViewerDetailsTable';
 import ChatArchive from '@/components/ChatArchive';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import SessionStatusBadge from '@/components/SessionStatusBadge';
+import { formatTimestamp, formatDuration } from '@/lib/format-time';
 
-function formatDuration(seconds: number) {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
 
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m ${secs}s`;
-}
 
 export default function AnalyticsPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -85,11 +81,7 @@ export default function AnalyticsPage() {
   }, [sessionId]);
 
   if (loading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
-      </div>
-    );
+    return <LoadingSpinner size="lg" text="Loading analytics..." className="h-screen w-full" />;
   }
 
   if (error || !session) {
@@ -124,10 +116,21 @@ export default function AnalyticsPage() {
         </Button>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">{session.title}</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold tracking-tight">{session.title}</h1>
+              <SessionStatusBadge 
+                status={
+                  session.isLive 
+                    ? 'live' 
+                    : new Date(session.scheduledStart) > new Date() 
+                      ? 'scheduled' 
+                      : 'ended'
+                } 
+              />
+            </div>
             <div className="mt-2 flex items-center text-muted-foreground">
               <Calendar className="mr-2 h-4 w-4" />
-              <span>{format(new Date(session.scheduledStart), 'PPP p')}</span>
+              <span>{formatTimestamp(new Date(session.scheduledStart))}</span>
             </div>
           </div>
         </div>

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import useSessionState from '@/hooks/useSessionState';
 import useViewerTracking from '@/hooks/useViewerTracking';
@@ -14,6 +13,7 @@ import JoinSessionModal from '@/components/JoinSessionModal';
 import { pollsCollection } from '@/lib/firestore-collections';
 import { query, where, onSnapshot } from 'firebase/firestore';
 import type { Poll } from '@/lib/types';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 const SessionPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -125,10 +125,11 @@ const SessionPage = () => {
     return () => clearTimeout(timeout);
   }, [activePoll]);
 
+
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <LoadingSpinner size="lg" text="Loading session..." />
       </div>
     );
   }

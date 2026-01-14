@@ -6,9 +6,10 @@ import { sessionsCollection } from '@/lib/firestore-collections';
 import type { Session } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, Calendar, Play, BarChart2, Video } from 'lucide-react';
+import { Calendar, Play, BarChart2, Video } from 'lucide-react';
 import { toast } from 'sonner';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import SessionStatusBadge from '@/components/SessionStatusBadge';
 
 export default function SessionsListPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -34,11 +35,7 @@ export default function SessionsListPage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingSpinner size="lg" text="Loading sessions..." className="min-h-screen" />;
   }
 
   return (
@@ -74,13 +71,18 @@ export default function SessionsListPage() {
                       {format(new Date(session.scheduledStart), 'MMM d, p')}
                     </div>
                   </div>
-                  {session.isLive ? (
-                    <Badge variant="destructive" className="animate-pulse">LIVE</Badge>
-                  ) : new Date(session.scheduledStart) > new Date() ? (
-                    <Badge variant="outline" className="text-blue-500 border-blue-500/30">Scheduled</Badge>
-                  ) : (
-                    <Badge variant="secondary">Ended</Badge>
-                  )}
+                  {/* Status Badge */}
+                  <div className="ml-2 shrink-0">
+                    <SessionStatusBadge 
+                      status={
+                        session.isLive 
+                          ? 'live' 
+                          : new Date(session.scheduledStart) > new Date() 
+                            ? 'scheduled' 
+                            : 'ended'
+                      } 
+                    />
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="mt-auto pt-0">

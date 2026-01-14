@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2 } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import useChat from '@/hooks/useChat';
 import PollVoteCard from '@/components/PollVoteCard';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Poll } from '@/lib/types';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 
 interface ChatSidebarProps {
@@ -79,7 +80,7 @@ export default function ChatSidebar({ sessionId, isAdmin, activePoll }: ChatSide
 
           {loading ? (
             <div className="flex justify-center items-center py-10">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <LoadingSpinner size="sm" text="Loading chat..." />
             </div>
           ) : messages.length === 0 ? (
             <div className="text-center text-muted-foreground text-sm py-10 opacity-70">

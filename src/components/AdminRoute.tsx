@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { toast } from 'sonner';
 
 interface AdminRouteProps {
@@ -44,7 +44,7 @@ const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
   if (authLoading || checkingAdmin) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-background">
-        <LoadingSpinner size={48} />
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
