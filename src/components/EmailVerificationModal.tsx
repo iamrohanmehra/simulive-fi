@@ -24,7 +24,7 @@ interface UserData {
   courses: any[];
 }
 
-const EmailVerificationModal = ({ isOpen, onClose, onVerified }: EmailVerificationModalProps) => {
+const EmailVerificationModal = ({ isOpen, onVerified }: EmailVerificationModalProps) => {
   const { verifyEmailWithAPI } = useAuth();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);

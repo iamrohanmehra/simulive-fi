@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 interface UseChatReturn {
   messages: Message[];
   loading: boolean;
-  sendMessage: (content: string, messageType?: Message['messageType']) => Promise<void>;
+  sendMessage: (content: string, messageType?: Message['messageType'], targetUserId?: string) => Promise<void>;
   pinMessage: (messageId: string) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   loadMoreMessages: () => Promise<void>;
@@ -101,7 +101,7 @@ export default function useChat(sessionId: string): UseChatReturn {
     return () => unsubscribe();
   }, [sessionId]);
 
-  const sendMessage = async (content: string, messageType: Message['messageType'] = 'user') => {
+  const sendMessage = async (content: string, messageType: Message['messageType'] = 'user', targetUserId?: string) => {
     if (!user) {
       toast.error('You must be logged in to chat');
       return;
@@ -128,7 +128,7 @@ export default function useChat(sessionId: string): UseChatReturn {
     try {
       setLastMessageTime(now);
       
-      await addDoc(collection(db, 'messages'), {
+      const messageData: any = {
         sessionId,
         userId: user.uid,
         userName: user.displayName || 'Anonymous',
@@ -138,7 +138,13 @@ export default function useChat(sessionId: string): UseChatReturn {
         isPinned: false,
         isDeleted: false,
         createdAt: serverTimestamp(),
-      });
+      };
+
+      if (targetUserId) {
+        messageData.targetUserId = targetUserId;
+      }
+
+      await addDoc(collection(db, 'messages'), messageData);
       
     } catch (error) {
       console.error('Error sending message:', error);

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { MediaPlayer, MediaOutlet } from '@vidstack/react';
 import type { MediaPlayerElement } from 'vidstack';
-import '@vidstack/react/player/styles/base.css';
+import 'vidstack/styles/base.css';
 import { useServerTimeSync } from '@/hooks/useServerTimeSync';
 import type { Session } from '@/lib/types';
 
