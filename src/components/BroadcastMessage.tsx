@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Megaphone, Send } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -19,10 +19,21 @@ interface BroadcastMessageProps {
   onSent?: () => void;
 }
 
-const BroadcastMessage = ({ sessionId, onSent }: BroadcastMessageProps) => {
+export interface BroadcastMessageRef {
+  focusInput: () => void;
+}
+
+const BroadcastMessage = forwardRef<BroadcastMessageRef, BroadcastMessageProps>(({ sessionId, onSent }, ref) => {
   const [broadcastText, setBroadcastText] = useState('');
   const [sending, setSending] = useState(false);
   const { sendMessage } = useChat(sessionId);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    focusInput: () => {
+      textareaRef.current?.focus();
+    }
+  }));
 
   const handleSendBroadcast = async () => {
     if (!broadcastText.trim()) {
@@ -64,6 +75,7 @@ const BroadcastMessage = ({ sessionId, onSent }: BroadcastMessageProps) => {
       </CardHeader>
       <CardContent className="pb-3">
         <Textarea
+          ref={textareaRef}
           placeholder="Type your announcement here..."
           className="resize-none min-h-[100px]"
           value={broadcastText}
@@ -94,6 +106,8 @@ const BroadcastMessage = ({ sessionId, onSent }: BroadcastMessageProps) => {
       </CardFooter>
     </Card>
   );
-};
+});
+
+BroadcastMessage.displayName = 'BroadcastMessage';
 
 export default BroadcastMessage;

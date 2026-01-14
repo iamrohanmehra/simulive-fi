@@ -10,6 +10,7 @@ import { Calendar, Play, BarChart2, Video } from 'lucide-react';
 import { toast } from 'sonner';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import SessionStatusBadge from '@/components/SessionStatusBadge';
+import { DuplicateSessionDialog } from '@/components/DuplicateSessionDialog';
 
 export default function SessionsListPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -33,6 +34,14 @@ export default function SessionsListPage() {
 
     fetchSessions();
   }, []);
+
+  const handleSessionCreated = (newSession: Session) => {
+    // Add new session to top of list as it's likely sorted by desc start time, 
+    // but simplified just prepend it for immediate feedback or re-sort
+    setSessions(prev => [newSession, ...prev].sort((a, b) => 
+      new Date(b.scheduledStart).getTime() - new Date(a.scheduledStart).getTime()
+    ));
+  };
 
   if (loading) {
     return <LoadingSpinner size="lg" text="Loading sessions..." className="min-h-screen" />;
@@ -64,15 +73,15 @@ export default function SessionsListPage() {
             <Card key={session.id} className="flex flex-col">
               <CardHeader>
                 <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="line-clamp-1">{session.title}</CardTitle>
+                  <div className="space-y-1 max-w-[calc(100%-80px)]">
+                    <CardTitle className="line-clamp-1" title={session.title}>{session.title}</CardTitle>
                     <div className="flex items-center text-sm text-muted-foreground">
-                      <Calendar className="mr-1 h-3 w-3" />
+                      <Calendar className="mr-2 h-3 w-3" />
                       {format(new Date(session.scheduledStart), 'MMM d, p')}
                     </div>
                   </div>
-                  {/* Status Badge */}
-                  <div className="ml-2 shrink-0">
+                  {/* Actions & Status */}
+                  <div className="flex flex-col items-end gap-2">
                     <SessionStatusBadge 
                       status={
                         session.isLive 
@@ -82,6 +91,7 @@ export default function SessionsListPage() {
                             : 'ended'
                       } 
                     />
+                    <DuplicateSessionDialog session={session} onSessionCreated={handleSessionCreated} />
                   </div>
                 </div>
               </CardHeader>

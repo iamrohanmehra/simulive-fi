@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Users, Play, BarChart2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { updateDoc } from 'firebase/firestore';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import useKeyboardShortcuts from '@/hooks/useKeyboardShortcuts';
+import HelpModal from '@/components/HelpModal';
 
 import { 
   Card, 
@@ -17,14 +19,16 @@ import { Button } from '@/components/ui/button';
 import useSessionState from '@/hooks/useSessionState';
 import useCurrentViewers from '@/hooks/useCurrentViewers';
 import useChat from '@/hooks/useChat';
-import BroadcastMessage from '@/components/BroadcastMessage';
+import BroadcastMessage, { type BroadcastMessageRef } from '@/components/BroadcastMessage';
 import DirectReplyPanel from '@/components/DirectReplyPanel';
 import AdminChatFeed from '@/components/AdminChatFeed';
-import PollCreator from '@/components/PollCreator';
+import PollCreator, { type PollCreatorRef } from '@/components/PollCreator';
 import ActivePollsPanel from '@/components/ActivePollsPanel';
 import { sessionDoc } from '@/lib/firestore-collections';
 import computeSessionAnalytics from '@/lib/compute-analytics';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import ConnectionStatus from '@/components/ConnectionStatus';
+import ViewerList from '@/components/ViewerList';
 
 const LiveAdminPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -37,6 +41,36 @@ const LiveAdminPage = () => {
 
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [showEndSessionDialog, setShowEndSessionDialog] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+
+  // Refs for shortcuts
+  const broadcastRef = useRef<BroadcastMessageRef>(null);
+  const pollCreatorRef = useRef<PollCreatorRef>(null);
+
+  // Keyboard Shortcuts
+  useKeyboardShortcuts([
+    {
+      key: 'b',
+      ctrl: true,
+      handler: () => {
+        broadcastRef.current?.focusInput();
+      }
+    },
+    {
+      key: 'p',
+      ctrl: true,
+      handler: () => {
+        pollCreatorRef.current?.focusInput();
+      }
+    },
+    {
+      key: 'h',
+      ctrl: true,
+      handler: () => {
+        setShowHelpModal(prev => !prev);
+      }
+    }
+  ]);
 
   const handleReplyUser = (userId: string) => {
     setSelectedUserId(userId);
@@ -98,6 +132,18 @@ const LiveAdminPage = () => {
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-6 lg:p-8 space-y-6">
+      <ConnectionStatus />
+      
+      <HelpModal 
+        isOpen={showHelpModal} 
+        onClose={() => setShowHelpModal(false)} 
+        shortcuts={[
+          { label: 'Focus Broadcast', combination: 'Ctrl + B' },
+          { label: 'Focus Poll', combination: 'Ctrl + P' },
+          { label: 'Toggle Help', combination: 'Ctrl + H' },
+        ]}
+      />
+
       <header className="flex items-center justify-between pb-4 border-b">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Live Control Panel</h1>
@@ -111,27 +157,31 @@ const LiveAdminPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-12rem)]">
         {/* Left Column: Controls & Stats */}
         <div className="space-y-6">
-          <Card className="border-l-4 border-l-indigo-500 shadow-md">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Live Viewers
-              </CardTitle>
-              <Users className="h-4 w-4 text-indigo-500" />
-            </CardHeader>
-            <CardContent>
-              <div key={viewerCount} className="text-4xl font-bold text-indigo-600 animate-[pulse_1s_ease-in-out_1]">
-                {viewerCount}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Currently watching the stream
-              </p>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="border-l-4 border-l-indigo-500 shadow-md">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Live Viewers
+                </CardTitle>
+                <Users className="h-4 w-4 text-indigo-500" />
+              </CardHeader>
+              <CardContent>
+                <div key={viewerCount} className="text-4xl font-bold text-indigo-600 animate-[pulse_1s_ease-in-out_1]">
+                  {viewerCount}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Currently watching the stream
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <ViewerList sessionId={sessionId || ''} />
 
           <ActivePollsPanel sessionId={sessionId || ''} />
-          <PollCreator sessionId={sessionId || ''} />
+          <PollCreator ref={pollCreatorRef} sessionId={sessionId || ''} />
 
-          <BroadcastMessage sessionId={sessionId || ''} />
+          <BroadcastMessage ref={broadcastRef} sessionId={sessionId || ''} />
           <DirectReplyPanel 
             sessionId={sessionId || ''} 
             messages={messages} 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Plus, Trash2, Loader2, BarChart2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
@@ -22,12 +22,23 @@ interface PollCreatorProps {
   onPollCreated?: () => void;
 }
 
-const PollCreator = ({ sessionId, onPollCreated }: PollCreatorProps) => {
+export interface PollCreatorRef {
+  focusInput: () => void;
+}
+
+const PollCreator = forwardRef<PollCreatorRef, PollCreatorProps>(({ sessionId, onPollCreated }, ref) => {
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState<string[]>(['', '']);
   const [duration, setDuration] = useState<number>(5);
   const [creating, setCreating] = useState(false);
   const { sendMessage } = useChat(sessionId);
+  const questionInputRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    focusInput: () => {
+      questionInputRef.current?.focus();
+    }
+  }));
 
   const handleOptionChange = (index: number, value: string) => {
     const newOptions = [...options];
@@ -113,6 +124,7 @@ const PollCreator = ({ sessionId, onPollCreated }: PollCreatorProps) => {
         <div className="space-y-2">
           <Label>Question</Label>
           <Input
+            ref={questionInputRef}
             placeholder="Ask something..."
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
@@ -188,6 +200,8 @@ const PollCreator = ({ sessionId, onPollCreated }: PollCreatorProps) => {
       </CardFooter>
     </Card>
   );
-};
+});
+
+PollCreator.displayName = 'PollCreator';
 
 export default PollCreator;

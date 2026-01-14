@@ -7,20 +7,28 @@ import { Button } from '@/components/ui/button';
 import type { Message } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
+import { Checkbox } from '@/components/ui/checkbox';
+
 interface ChatMessageProps {
   message: Message;
-  isAdmin: boolean;
+  isAdmin?: boolean;
   onPin?: (messageId: string) => void;
   onDelete?: (messageId: string) => void;
-  onReply?: (messageId: string) => void;
+  onReply?: (userId: string) => void;
+  onSelect?: (messageId: string, selected: boolean) => void;
+  isSelected?: boolean;
+  selectionMode?: boolean;
 }
 
 const ChatMessage = ({ 
   message, 
-  isAdmin, 
+  isAdmin = false, 
   onPin, 
-  onDelete,
-  onReply 
+  onDelete, 
+  onReply,
+  onSelect,
+  isSelected = false,
+  selectionMode = false
 }: ChatMessageProps) => {
   const colorClass = generateColorFromName(message.userName || 'Anonymous');
   // Derive background color from text color class (e.g., text-blue-400 -> bg-blue-400/20)
@@ -37,17 +45,28 @@ const ChatMessage = ({
   
   if (isSystem) {
     return (
-      <div className="flex justify-center py-2 text-xs text-muted-foreground italic opacity-70">
-        {message.content}
+      // Updated system message div
+      <div className={cn("flex items-center gap-2 py-1 justify-center text-xs text-muted-foreground/70", selectionMode && "pl-8")}>
+        <span>{message.content}</span>
       </div>
     );
   }
 
   return (
     <div className={cn(
-      "group flex items-start space-x-3 py-2 px-2 rounded-lg hover:bg-muted/50 transition-colors",
-      message.isDeleted && "opacity-50"
+      // Updated main message div classes
+      "group relative flex items-start gap-2 py-1 px-2 rounded-md hover:bg-muted/50 transition-colors",
+      message.isPinned && "bg-indigo-50/50 dark:bg-indigo-950/20 border-l-2 border-indigo-500 pl-2",
+      isSelected && "bg-muted"
     )}>
+      {selectionMode && onSelect && ( // Conditional Checkbox rendering
+        <div className="flex h-full items-center mr-1">
+           <Checkbox 
+             checked={isSelected}
+             onCheckedChange={(checked) => onSelect(message.id, !!checked)}
+           />
+        </div>
+      )}
       <Avatar className="h-8 w-8 shrink-0">
         <AvatarImage src={message.userAvatar || undefined} />
         <AvatarFallback className={cn("text-xs font-semibold", colorClass, bgClass)}>

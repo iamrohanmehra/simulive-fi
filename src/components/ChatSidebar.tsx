@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Send } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,12 +18,30 @@ interface ChatSidebarProps {
   activePoll: Poll | null;
 }
 
-export default function ChatSidebar({ sessionId, isAdmin, activePoll }: ChatSidebarProps) {
+export interface ChatSidebarRef {
+  focusInput: () => void;
+  clearInput: () => void;
+}
+
+const ChatSidebar = forwardRef<ChatSidebarRef, ChatSidebarProps>(({ sessionId, isAdmin, activePoll }, ref) => {
   const { user } = useAuth();
   const { messages, loading, sendMessage, pinMessage, deleteMessage } = useChat(sessionId);
   const [messageInput, setMessageInput] = useState('');
   const [isAtBottom, setIsAtBottom] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    focusInput: () => {
+      inputRef.current?.focus();
+    },
+    clearInput: () => {
+      setMessageInput('');
+      inputRef.current?.focus(); 
+      // Optionally focus after clear? Requirement says "Escape: Clear message input". 
+      // Usually that implies clearing and keeping focus or just clearing.
+    }
+  }));
 
   // Auto-scroll to bottom when new messages arrive if user was at bottom
   useEffect(() => {
@@ -99,6 +117,7 @@ export default function ChatSidebar({ sessionId, isAdmin, activePoll }: ChatSide
                   const msg = messages.find(m => m.id === id);
                   if (msg) {
                      setMessageInput(`@${msg.userName} `);
+                     inputRef.current?.focus();
                   }
                 }}
               />
@@ -111,6 +130,7 @@ export default function ChatSidebar({ sessionId, isAdmin, activePoll }: ChatSide
       <div className="p-3 border-t bg-card mt-auto">
         <form onSubmit={handleSendMessage} className="flex gap-2">
           <Input 
+            ref={inputRef}
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
             placeholder="Type a message..."
@@ -125,4 +145,8 @@ export default function ChatSidebar({ sessionId, isAdmin, activePoll }: ChatSide
       </div>
     </Card>
   );
-}
+});
+
+ChatSidebar.displayName = 'ChatSidebar';
+
+export default ChatSidebar;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import useSessionState from '@/hooks/useSessionState';
@@ -6,14 +6,17 @@ import useViewerTracking from '@/hooks/useViewerTracking';
 import useCurrentViewers from '@/hooks/useCurrentViewers';
 import CountdownScreen from '@/components/CountdownScreen';
 import DualVideoPlayer from '@/components/DualVideoPlayer';
-import ChatSidebar from '@/components/ChatSidebar';
+import ChatSidebar, { type ChatSidebarRef } from '@/components/ChatSidebar';
 import SessionEndedScreen from '@/components/SessionEndedScreen';
 import EmailVerificationModal from '@/components/EmailVerificationModal';
 import JoinSessionModal from '@/components/JoinSessionModal';
+import HelpModal from '@/components/HelpModal';
 import { pollsCollection } from '@/lib/firestore-collections';
 import { query, where, onSnapshot } from 'firebase/firestore';
 import type { Poll } from '@/lib/types';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import useKeyboardShortcuts from '@/hooks/useKeyboardShortcuts';
+import ConnectionStatus from '@/components/ConnectionStatus';
 
 const SessionPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -22,10 +25,43 @@ const SessionPage = () => {
   // Local state for modal flow
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
   const [userData, setUserData] = useState<{ name: string; avatar: string } | null>(null);
   const [activePoll, setActivePoll] = useState<Poll | null>(null);
   const [displayedPoll, setDisplayedPoll] = useState<Poll | null>(null);
+
+  const chatSidebarRef = useRef<ChatSidebarRef>(null);
+
+  // Keyboard Shortcuts
+  useKeyboardShortcuts([
+    {
+      key: 'm',
+      ctrl: true,
+      handler: () => {
+        chatSidebarRef.current?.focusInput();
+      }
+    },
+    {
+      key: 'h',
+      ctrl: true,
+      handler: () => {
+        setShowHelpModal(prev => !prev);
+      }
+    },
+    {
+      key: 'Escape',
+      handler: () => {
+        // If help modal is open, close it
+        if (showHelpModal) {
+          setShowHelpModal(false);
+          return;
+        }
+        // Otherwise clear chat input
+        chatSidebarRef.current?.clearInput();
+      }
+    }
+  ]);
 
   // 1. Session State Management
   const { sessionState, session, loading } = useSessionState(sessionId || '');
@@ -147,6 +183,18 @@ const SessionPage = () => {
 
   return (
     <>
+      <ConnectionStatus />
+      
+      <HelpModal 
+        isOpen={showHelpModal} 
+        onClose={() => setShowHelpModal(false)} 
+        shortcuts={[
+          { label: 'Focus Chat', combination: 'Ctrl + M' },
+          { label: 'Toggle Help', combination: 'Ctrl + H' },
+          { label: 'Clear Chat / Close', combination: 'Esc' },
+        ]}
+      />
+
       {/* Modals are rendered at root level but controlled by state */}
       <EmailVerificationModal 
         isOpen={showEmailModal} 
@@ -203,6 +251,7 @@ const SessionPage = () => {
                 {/* Right Sidebar - Chat */}
                 <div className="w-[350px] border-l border-border h-full flex-none">
                   <ChatSidebar 
+                    ref={chatSidebarRef}
                     sessionId={sessionId} 
                     isAdmin={false} 
                     activePoll={displayedPoll}
