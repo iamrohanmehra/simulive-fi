@@ -1,111 +1,106 @@
-import { useState, useRef, useEffect } from 'react';
-import type {  MediaPlayerElement } from 'vidstack';
-import VideoPlayer from './VideoPlayer';
-import useServerTimeSync from '@/hooks/useServerTimeSync';
+import { useEffect, useRef } from 'react';
+import { MediaPlayer, MediaOutlet } from '@vidstack/react';
+import type { MediaPlayerElement } from 'vidstack';
+import '@vidstack/react/player/styles/base.css';
+import { useServerTimeSync } from '@/hooks/useServerTimeSync';
+import type { Session } from '@/lib/types';
 
 interface DualVideoPlayerProps {
-  screenUrl: string;
-  faceUrl: string;
-  sessionId: string;
-  scheduledStart: Date;
+  session: Session;
 }
 
-type PipPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
-
-const positionClasses: Record<PipPosition, string> = {
-  'top-left': 'top-4 left-4',
-  'top-right': 'top-4 right-4',
-  'bottom-left': 'bottom-4 left-4',
-  'bottom-right': 'bottom-4 right-4',
-};
-
-const positionCycle: PipPosition[] = ['top-left', 'top-right', 'bottom-right', 'bottom-left'];
-
-const DRIFT_THRESHOLD = 0.25; // seconds
-const DRIFT_CHECK_INTERVAL = 5000; // 5 seconds
-
-export default function DualVideoPlayer({ screenUrl, faceUrl, sessionId, scheduledStart }: DualVideoPlayerProps) {
-  const [pipPosition, setPipPosition] = useState<PipPosition>('bottom-right');
-  const [screenTime, setScreenTime] = useState(0);
-  const [faceTime, setFaceTime] = useState(0);
-
-  // Refs for video players
-  const screenPlayerRef = useRef<MediaPlayerElement>(null);
+const DualVideoPlayer = ({ session }: DualVideoPlayerProps) => {
+  const mainPlayerRef = useRef<MediaPlayerElement>(null);
   const facePlayerRef = useRef<MediaPlayerElement>(null);
+  
+  // Get the calculated live offset from server time
+  const { liveOffset, isSynced } = useServerTimeSync(session.id, session.scheduledStart);
 
-  // Get live offset from server time sync
-  const { liveOffset, serverTime } = useServerTimeSync({
-    sessionId,
-    scheduledStart,
-  });
-
-  // Seek both videos when liveOffset changes
+  // Sync logic
   useEffect(() => {
-    if (liveOffset > 0 && screenPlayerRef.current && facePlayerRef.current) {
-      console.log(`[DualVideoPlayer] Seeking to liveOffset: ${liveOffset.toFixed(2)}s`);
-      (screenPlayerRef.current as any).currentTime = liveOffset;
-      (facePlayerRef.current as any).currentTime = liveOffset;
-    }
-  }, [liveOffset]);
+    if (!isSynced) return;
 
-  // Drift correction logic - check every 5 seconds
-  useEffect(() => {
-    const driftCheckInterval = setInterval(() => {
-      if (!screenPlayerRef.current || !facePlayerRef.current || !serverTime) {
-        return;
+    const syncPlayer = (player: MediaPlayerElement | null) => {
+      if (!player) return;
+
+      const playerInstance = player as any;
+      const currentTime = playerInstance.currentTime;
+      const drift = Math.abs(currentTime - liveOffset);
+
+      // If drift is significant (> 0.25s), seek to live offset
+      if (drift > 0.25) {
+        playerInstance.currentTime = liveOffset;
       }
-
-      // Calculate expected time based on current server time
-      const now = new Date();
-      const elapsedMs = now.getTime() - scheduledStart.getTime();
-      const expectedTime = elapsedMs / 1000;
-
-      // Check drift for screen player
-      const screenDrift = Math.abs(screenTime - expectedTime);
-      if (screenDrift > DRIFT_THRESHOLD) {
-        console.log(`[Drift Correction] Screen video drifted by ${screenDrift.toFixed(2)}s, correcting to ${expectedTime.toFixed(2)}s`);
-        (screenPlayerRef.current as any).currentTime = expectedTime;
+      
+      // Ensure player is playing
+      if (playerInstance.paused) {
+        playerInstance.play().catch(() => {
+          // Auto-play might fail without interaction, handle silently
+        });
       }
-
-      // Check drift for face player
-      const faceDrift = Math.abs(faceTime - expectedTime);
-      if (faceDrift > DRIFT_THRESHOLD) {
-        console.log(`[Drift Correction] Face video drifted by ${faceDrift.toFixed(2)}s, correcting to ${expectedTime.toFixed(2)}s`);
-        (facePlayerRef.current as any).currentTime = expectedTime;
-      }
-    }, DRIFT_CHECK_INTERVAL);
-
-    return () => {
-      clearInterval(driftCheckInterval);
     };
-  }, [screenTime, faceTime, serverTime, scheduledStart]);
 
-  const handlePipClick = () => {
-    const currentIndex = positionCycle.indexOf(pipPosition);
-    const nextIndex = (currentIndex + 1) % positionCycle.length;
-    setPipPosition(positionCycle[nextIndex]);
-  };
+    // Check drift every 500ms
+    const interval = setInterval(() => {
+      syncPlayer(mainPlayerRef.current);
+      syncPlayer(facePlayerRef.current);
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [liveOffset, isSynced]);
+
+  // Initial sync when offset loads
+  useEffect(() => {
+    if (isSynced && liveOffset > 0) {
+      if (mainPlayerRef.current) (mainPlayerRef.current as any).currentTime = liveOffset;
+      if (facePlayerRef.current) (facePlayerRef.current as any).currentTime = liveOffset;
+    }
+  }, [isSynced, liveOffset]);
+
+  if (!isSynced) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-black text-white">
+        Loading live stream...
+      </div>
+    );
+  }
 
   return (
-    <div className="relative w-full h-screen">
-      {/* Main video (screen share) */}
-      <VideoPlayer
-        ref={screenPlayerRef}
-        videoUrl={screenUrl}
-        onTimeUpdate={setScreenTime}
-      />
-
-      {/* PiP video (face cam) */}
-      <div
-        className={`absolute ${positionClasses[pipPosition]} w-64 h-48 cursor-pointer rounded-lg overflow-hidden shadow-lg`}
-        onClick={handlePipClick}
+    <div className="relative w-full h-full bg-black overflow-hidden">
+      {/* Main Screen Share Player */}
+      <MediaPlayer
+        ref={mainPlayerRef}
+        src={session.screenUrl}
+        streamType="live"
+        controls={false}
+        autoPlay
+        playsInline
+        className="w-full h-full object-contain"
+        onContextMenu={(e: React.MouseEvent) => e.preventDefault()}
       >
-        <VideoPlayer
-          ref={facePlayerRef}
-          videoUrl={faceUrl}
-          onTimeUpdate={setFaceTime}
-        />
-      </div>
+        <MediaOutlet />
+      </MediaPlayer>
+
+      {/* Face Cam PiP Player */}
+      {session.faceUrl && (
+        <div className="absolute bottom-4 right-4 w-48 h-36 md:w-64 md:h-48 rounded-lg overflow-hidden shadow-lg border-2 border-gray-800 z-10 transition-all hover:scale-105">
+          <MediaPlayer
+            ref={facePlayerRef}
+            src={session.faceUrl}
+            streamType="live"
+            controls={false}
+            autoPlay
+            playsInline
+            muted // Mute face cam to avoid echo, assuming main audio is sufficient or same source
+            className="w-full h-full object-cover"
+            onContextMenu={(e: React.MouseEvent) => e.preventDefault()}
+          >
+            <MediaOutlet />
+          </MediaPlayer>
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export default DualVideoPlayer;

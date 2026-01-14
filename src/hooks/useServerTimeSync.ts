@@ -1,56 +1,70 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getServerTime } from '@/lib/server-time';
+import { Timestamp } from 'firebase/firestore';
 
-interface UseServerTimeSyncParams {
-  sessionId: string;
-  scheduledStart: Date;
-}
-
-interface UseServerTimeSyncResult {
-  liveOffset: number;
-  serverTime: Date | null;
-  isDriftCorrecting: boolean;
-}
-
-export default function useServerTimeSync({ sessionId, scheduledStart }: UseServerTimeSyncParams): UseServerTimeSyncResult {
-  const [serverTime, setServerTime] = useState<Date | null>(null);
+/**
+ * Hook to sync with server time and calculate the live playback offset.
+ * 
+ * @param sessionId - Current session ID (used to reset sync on change)
+ * @param scheduledStart - The scheduled start time of the session (Firestore Timestamp) or Date string
+ * @returns Object containing the calculations:
+ *   - liveOffset: Number of seconds since the session started (for video seeking)
+ *   - isSynced: Boolean indicating if the initial sync has completed
+ */
+export function useServerTimeSync(
+  sessionId: string,
+  scheduledStart: string | Timestamp | Date
+) {
   const [liveOffset, setLiveOffset] = useState(0);
-  const [isDriftCorrecting, setIsDriftCorrecting] = useState(false);
-
-  const updateTimeSync = async () => {
-    try {
-      const currentServerTime = await getServerTime();
-      setServerTime(currentServerTime);
-
-      // Calculate offset in seconds from scheduled start
-      const offsetMs = currentServerTime.getTime() - scheduledStart.getTime();
-      const offsetSeconds = offsetMs / 1000;
-      setLiveOffset(offsetSeconds);
-    } catch (error) {
-      console.error('Failed to sync server time:', error);
-    }
-  };
+  const [isSynced, setIsSynced] = useState(false);
+  
+  // Use a ref to track if we're mounted to avoid state updates after unmount
+  const isMounted = useRef(true);
 
   useEffect(() => {
-    // Initial sync on mount
-    updateTimeSync();
+    isMounted.current = true;
+    
+    async function sync() {
+      try {
+        const serverTime = await getServerTime();
+        
+        if (!isMounted.current) return;
 
-    // Set up interval for periodic sync (every 30 seconds)
-    const intervalId = setInterval(async () => {
-      setIsDriftCorrecting(true);
-      await updateTimeSync();
-      setIsDriftCorrecting(false);
-    }, 30000);
+        // Convert scheduledStart to Date object
+        let startDate: Date;
+        if (typeof scheduledStart === 'string') {
+          startDate = new Date(scheduledStart);
+        } else if (scheduledStart instanceof Timestamp) {
+          startDate = scheduledStart.toDate();
+        } else {
+          startDate = scheduledStart;
+        }
 
-    // Cleanup interval on unmount
+        // Calculate offset in seconds
+        const offsetInSeconds = (serverTime.getTime() - startDate.getTime()) / 1000;
+        
+        // Ensure offset is never negative (session hasn't started yet)
+        setLiveOffset(Math.max(0, offsetInSeconds));
+        setIsSynced(true);
+        
+      } catch (error) {
+        console.error('Failed to sync server time:', error);
+      }
+    }
+
+    // Initial sync
+    sync();
+
+    // Re-sync every 30 seconds to correct for drift
+    const interval = setInterval(sync, 30000);
+
     return () => {
-      clearInterval(intervalId);
+      isMounted.current = false;
+      clearInterval(interval);
     };
   }, [sessionId, scheduledStart]);
 
-  return {
-    liveOffset,
-    serverTime,
-    isDriftCorrecting,
-  };
+  return { liveOffset, isSynced };
 }
+
+export default useServerTimeSync;
