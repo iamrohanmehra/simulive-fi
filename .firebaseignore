@@ -1,0 +1,10 @@
+node_modules/
+.git/
+dist/
+src/
+.env
+.env.local
+.DS_Store
+README.md
+wrangler.toml
+vite.config.ts

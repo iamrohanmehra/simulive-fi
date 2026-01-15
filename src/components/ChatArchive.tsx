@@ -19,7 +19,7 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Checkbox } from './ui/checkbox';
 import { Label } from '@/components/ui/label';
 
 interface ChatArchiveProps {
@@ -206,7 +206,7 @@ export default function ChatArchive({ sessionId }: ChatArchiveProps) {
                     <Checkbox 
                       id="pinned-filter" 
                       checked={pinnedOnly} 
-                      onCheckedChange={(c) => setPinnedOnly(!!c)} 
+                      onCheckedChange={(c: boolean) => setPinnedOnly(c)} 
                     />
                     <Label htmlFor="pinned-filter" className="text-sm font-normal">Pinned only</Label>
                   </div>

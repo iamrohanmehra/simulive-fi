@@ -29,6 +29,7 @@ import computeSessionAnalytics from '@/lib/compute-analytics';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import ConnectionStatus from '@/components/ConnectionStatus';
 import ViewerList from '@/components/ViewerList';
+import { logEvent } from '@/lib/analytics';
 
 const LiveAdminPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -88,6 +89,11 @@ const LiveAdminPage = () => {
       // 1. Mark session as ended
       await updateDoc(sessionDoc(sessionId), { isLive: false });
       
+      logEvent({
+        name: 'session_ended',
+        params: { session_id: sessionId } // Duration could be calculated if we had start time here, but simple event is fine
+      });
+
       // 2. Compute analytics
       toast.info('Computing analytics...');
       await computeSessionAnalytics(sessionId);

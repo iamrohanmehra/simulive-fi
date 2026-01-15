@@ -4,12 +4,19 @@ import { createRoot } from "react-dom/client"
 import "./index.css"
 import App from "./App.tsx"
 
-import ErrorBoundary from "./components/ErrorBoundary"
+import { initSentry } from './lib/sentry'
+import { validateEnv } from './lib/validate-env'
+import * as Sentry from "@sentry/react"
+import { ErrorFallback } from "./components/ErrorBoundary"
+
+// Validate environment variables before rendering
+validateEnv()
+initSentry()
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <ErrorBoundary>
+    <Sentry.ErrorBoundary fallback={ErrorFallback}>
       <App />
-    </ErrorBoundary>
+    </Sentry.ErrorBoundary>
   </StrictMode>
 )

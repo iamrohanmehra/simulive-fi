@@ -2,23 +2,27 @@ import React, { createContext, useContext, useState, useEffect, type ReactNode }
 import { 
   type User as FirebaseUser, 
   onAuthStateChanged, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   updateProfile
 } from 'firebase/auth';
 import { setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth } from '@/lib/firebase';
 import { userDoc } from '@/lib/firestore-collections';
-import type { User } from '@/lib/types';
 import { toast } from 'sonner';
 
 /**
  * Response type for email verification API
  */
+// Custom User Data from Codekaro API
+export interface UserData {
+  name: string;
+  avatar: string;
+  courses: any[];
+}
+
 interface EmailVerificationResponse {
   verified: boolean;
-  userData?: any;
+  userData?: UserData;
 }
 
 /**
@@ -33,23 +37,6 @@ export interface AuthContextType {
   loading: boolean;
   
   /**
-   * Signs in a user with email and password
-   * @param email - User's email address
-   * @param password - User's password
-   * @throws Error if sign in fails
-   */
-  signInWithEmail: (email: string, password: string) => Promise<void>;
-  
-  /**
-   * Creates a new user account with email and password
-   * @param email - User's email address
-   * @param password - User's password
-   * @param fullName - User's full name for profile
-   * @throws Error if sign up fails
-   */
-  signUpWithEmail: (email: string, password: string, fullName: string) => Promise<void>;
-  
-  /**
    * Signs out the currently authenticated user
    * @throws Error if sign out fails
    */
@@ -61,6 +48,11 @@ export interface AuthContextType {
    * @returns Object containing verification status and optional user data
    */
   verifyEmailWithAPI: (email: string) => Promise<EmailVerificationResponse>;
+
+  /**
+   * Validates email via Codekaro API and signs in anonymously
+   */
+  loginWithCodekaro: (email: string) => Promise<UserData | null>;
 }
 
 /**
@@ -116,57 +108,6 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
   }, []);
 
   /**
-   * Signs in a user with email and password
-   * @param email - User's email address
-   * @param password - User's password
-   */
-  const signInWithEmail = async (email: string, password: string): Promise<void> => {
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-      toast.error('Failed to sign in. Please check your credentials.');
-      throw error;
-    }
-  };
-
-  /**
-   * Creates a new user account with email and password
-   * Also updates the user's display name and creates a Firestore document
-   * @param email - User's email address
-   * @param password - User's password
-   * @param fullName - User's full name for profile
-   */
-  const signUpWithEmail = async (
-    email: string, 
-    password: string, 
-    fullName: string
-  ): Promise<void> => {
-    try {
-      // Create the user account
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const newUser = userCredential.user;
-
-      // Update the user's display name in Firebase Auth
-      await updateProfile(newUser, {
-        displayName: fullName
-      });
-
-      // Create user document in Firestore
-      await setDoc(userDoc(newUser.uid), {
-        id: newUser.uid,
-        email: email,
-        fullName: fullName,
-        avatarUrl: null,
-        isVerified: false,
-        createdAt: serverTimestamp()
-      } as unknown as User);
-    } catch (error) {
-      toast.error('Failed to create account. Please try again.');
-      throw error;
-    }
-  };
-
-  /**
    * Signs out the currently authenticated user
    */
   const signOut = async (): Promise<void> => {
@@ -188,64 +129,68 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
    */
   const verifyEmailWithAPI = async (email: string): Promise<EmailVerificationResponse> => {
     try {
-      const apiUrl = import.meta.env.VITE_CODEKARO_API_URL;
+      // Use env var or fallback to the known public API URL
+      const apiUrl = import.meta.env.VITE_CODEKARO_API_URL || 'https://codekaro.in/api';
       
-      if (!apiUrl) {
-        toast.error('Verification service not configured');
-        return { verified: false };
-      }
-
-      const response = await fetch(`${apiUrl}/verify-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
+      // API Requirement: GET https://codekaro.in/api/user/{email}
+      console.log(`Verifying email: ${email} against ${apiUrl}/user/${email}`);
+      const response = await fetch(`${apiUrl}/user/${email}`);
 
       if (!response.ok) {
-        toast.error('Verification failed. Please try again.');
-        return { verified: false };
+        if (response.status === 404) {
+             console.warn('User not found in Codekaro API');
+             return { verified: false };
+        }
+        throw new Error(`API Error: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const userProfile = await response.json();
+      
+      // Validate that we actually got a user profile
+      if (userProfile && (userProfile.email || userProfile.id)) {
+        
+        // Map API response to our UserData structure
+        // The API likely returns: { name, email, avatar, etc } 
+        // We'll map what we can.
+        const mappedUserData: UserData = {
+            name: userProfile.name || userProfile.fullName || 'Student',
+            avatar: userProfile.avatar || userProfile.picture || userProfile.photoUrl || '',
+            courses: userProfile.courses || []
+        };
 
-      if (data.verified && data.userData) {
-        // Store user data in localStorage for persistence
-        localStorage.setItem('codekaroUserData', JSON.stringify({
-          name: data.userData.name,
-          avatar: data.userData.avatar,
-          courses: data.userData.courses,
+        const userDataToStore = {
+          name: mappedUserData.name,
+          avatar: mappedUserData.avatar,
+          courses: mappedUserData.courses,
           email: email,
           verifiedAt: new Date().toISOString()
-        }));
+        };
 
-        // Update Firestore user document with verified status if user is authenticated
+        // Store user data in localStorage for persistence
+        localStorage.setItem('codekaroUserData', JSON.stringify(userDataToStore));
+
+        // Update Firestore user document with verified status if user is authenticated (which they will be shortly)
         if (user) {
           try {
             await setDoc(userDoc(user.uid), {
               isVerified: true,
-              fullName: data.userData.name || user.displayName,
-              avatarUrl: data.userData.avatar || null,
+              fullName: mappedUserData.name,
+              avatarUrl: mappedUserData.avatar || null,
             }, { merge: true });
           } catch (firestoreError) {
-            // Quietly fail for firestore update as user is locally verified
-            // Don't fail the verification if Firestore update fails
+             // Ignore
           }
         }
 
         return {
           verified: true,
-          userData: {
-            name: data.userData.name,
-            avatar: data.userData.avatar,
-            courses: data.userData.courses
-          }
+          userData: mappedUserData
         };
       }
 
       return { verified: false };
     } catch (error) {
+      console.error('Codekaro Verification Error:', error);
       toast.error('Error connecting to verification service');
       return { verified: false };
     }
@@ -254,11 +199,58 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
   const value: AuthContextType = {
     user,
     loading,
-    signInWithEmail,
-    signUpWithEmail,
     signOut,
-    verifyEmailWithAPI
+    verifyEmailWithAPI,
+    loginWithCodekaro
   };
+
+  /**
+   * Log in using Codekaro API verification and Firebase Anonymous Auth
+   * @param email The email to verify and login with
+   */
+  async function loginWithCodekaro(email: string): Promise<UserData | null> {
+    setLoading(true);
+    try {
+      const result = await verifyEmailWithAPI(email);
+      if (result.verified && result.userData) {
+          // 1. Sign in anonymously to Firebase
+          // Try to sign in. If already signed in anonymously, this might persist
+          // but we want to ensure we're connected.
+          const { signInAnonymously } = await import('firebase/auth');
+          const credential = await signInAnonymously(auth);
+          const user = credential.user;
+
+          // 2. Update profile with data from API
+          await updateProfile(user, {
+              displayName: result.userData.name,
+              photoURL: result.userData.avatar
+          });
+
+          // 3. Update/Create user document in Firestore
+          // We use the anonymous UID but store the real email
+          await setDoc(userDoc(user.uid), {
+             id: user.uid,
+             email: email,
+             fullName: result.userData.name,
+             avatarUrl: result.userData.avatar,
+             isVerified: true,
+             lastSeen: serverTimestamp()
+          } as any, { merge: true });
+
+          // 4. Force state update if needed (listener usually handles it)
+          setUser(user);
+          
+          return result.userData;
+      } else {
+         throw new Error("Email verification failed");
+      }
+    } catch(err) {
+       console.error(err);
+       throw err;
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <AuthContext.Provider value={value}>

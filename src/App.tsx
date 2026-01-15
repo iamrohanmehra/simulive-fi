@@ -5,7 +5,6 @@ import { Toaster } from '@/components/ui/sonner';
 
 // Pages
 import LoginPage from '@/pages/LoginPage';
-import SignUpPage from '@/pages/SignUpPage';
 import SessionsListPage from '@/pages/SessionsListPage';
 import SessionPage from '@/pages/SessionPage';
 import LiveAdminPage from '@/pages/LiveAdminPage';
@@ -13,8 +12,6 @@ import AnalyticsPage from '@/pages/AnalyticsPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
 // Route Guards
-import ProtectedRoute from '@/components/ProtectedRoute';
-import AdminRoute from '@/components/AdminRoute';
 import Navigation from '@/components/Navigation';
 
 export function App() {
@@ -25,45 +22,30 @@ export function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignUpPage />} />
-
-          {/* Protected Routes */}
+          
+          {/* Protected Routes - Temporarily Public or using simple check in Navigation? */}
+          {/* Since we removed ProtectedRoute, we let sessions list be public or use minimal check */}
           <Route
             path="/sessions"
-            element={
-              <ProtectedRoute>
-                <SessionsListPage />
-              </ProtectedRoute>
-            }
+            element={<SessionsListPage />}
           />
+          {/* Public Session Page - internally gated */}
           <Route
             path="/session/:sessionId"
-            element={
-              <ProtectedRoute>
-                <SessionPage />
-              </ProtectedRoute>
-            }
+            element={<SessionPage />}
           />
 
-          {/* Admin Routes */}
+          {/* Admin Routes - Public as requested */}
           <Route
             path="/live-admin/:sessionId"
-            element={
-              <AdminRoute>
-                <LiveAdminPage />
-              </AdminRoute>
-            }
+            element={<LiveAdminPage />}
           />
           <Route
             path="/analytics/:sessionId"
-            element={
-              <AdminRoute>
-                <AnalyticsPage />
-              </AdminRoute>
-            }
+            element={<AnalyticsPage />}
           />
 
-          {/* Redirect root to sessions (protected) */}
+          {/* Redirect root to sessions */}
           <Route path="/" element={<Navigate to="/sessions" replace />} />
 
           {/* 404 Route */}

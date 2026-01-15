@@ -17,6 +17,7 @@ import type { Poll } from '@/lib/types';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import useKeyboardShortcuts from '@/hooks/useKeyboardShortcuts';
 import ConnectionStatus from '@/components/ConnectionStatus';
+import { logEvent } from '@/lib/analytics';
 
 const SessionPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -75,39 +76,54 @@ const SessionPage = () => {
   // 3. Current Viewer Count
   const { viewerCount } = useCurrentViewers(sessionId || '');
 
-  // Initial verification check
+  // Initial verification check and sync with Firebase Auth
   useEffect(() => {
-    const storedData = localStorage.getItem('codekaroUserData');
-    if (storedData) {
-      try {
-        const parsed = JSON.parse(storedData);
-        setUserData(parsed);
+    // If we have a firebase user, we are "verified" in terms of access
+    if (user) {
         setShowEmailModal(false);
-        // Only show join modal if session is loaded and live/ready
-        // But for simplicity/requirement flow: verify -> join
-        setShowJoinModal(true);
-      } catch (e) {
-        setShowEmailModal(true);
-      }
+        // set hasJoined to true? No, let them click Join.
+        if (!hasJoined) setShowJoinModal(true);
+        
+        // Load user data from profile
+        setUserData({
+            name: user.displayName || 'Guest',
+            avatar: user.photoURL || ''
+        });
     } else {
-      setShowEmailModal(true);
+        // Not logged in to Firebase.
+        // Check if we have legacy local storage data to "auto-login"?
+        // For security/cleanliness, better to force re-verification if session expired?
+        // But user experience says: if I refreshed, stay logged in.
+        // Codekaro flow: LocalStorage might be used, but Firebase Auth persistence is better.
+        // If Firebase is loading, we wait.
+        // If Firebase is not loading and no user -> Show Email Modal.
+        if (!loading) {
+            setShowEmailModal(true);
+        }
     }
-  }, []);
+  }, [user, loading, hasJoined]);
 
   const handleVerified = () => {
-    // Re-fetch user data from local storage or context if needed, 
-    // but for now we trust the modal might have updated it or we check localStorage again
-    const storedData = localStorage.getItem('codekaroUserData');
-    if (storedData) {
-      setUserData(JSON.parse(storedData));
-    }
+    // This is called when EmailVerificationModal succeeds.
+    // The modal itself calls loginWithCodekaro, which sets the user.
+    // So the effect above [user] will trigger and close the modal.
+    // We just ensure state is clean here.
     setShowEmailModal(false);
-    setShowJoinModal(true);
   };
 
   const handleJoin = () => {
     setHasJoined(true);
     setShowJoinModal(false);
+    
+    if (sessionId) {
+      logEvent({
+        name: 'session_joined',
+        params: {
+          session_id: sessionId,
+          user_id: user?.uid ?? null
+        }
+      });
+    }
   };
 
   // Poll sync logic

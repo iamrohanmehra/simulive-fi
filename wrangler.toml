@@ -1,0 +1,13 @@
+name = "simulive-fi"
+compatibility_date = "2024-09-23"
+
+[build]
+command = "bun run build"
+output_dir = "dist"
+
+# Environment variables are managed in the Cloudflare Pages dashboard
+# but can be referenced here for documentation
+[vars]
+# VITE_FIREBASE_API_KEY = "..."
+# VITE_FIREBASE_AUTH_DOMAIN = "..."
+# ...

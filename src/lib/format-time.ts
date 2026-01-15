@@ -17,7 +17,7 @@ export function formatRelativeTime(date: Date | Timestamp | number): string {
   const distance = formatDistanceToNow(d, { addSuffix: true });
   
   // Simple abbreviations
-  return distance
+  let formatted = distance
     .replace('about ', '')
     .replace('less than a minute', 'now')
     .replace(' minutes', 'm')
@@ -27,10 +27,13 @@ export function formatRelativeTime(date: Date | Timestamp | number): string {
     .replace(' days', 'd')
     .replace(' day', 'd')
     .replace(' seconds', 's')
-    .replace(' second', 's')
-    .replace(' ago', ' ago'); // Keep ago as requested, or maybe "2m ago" is fine.
-    // Wait, "2m ago" -> "2 minutes ago".
-    // "2m ago" is shorter.
+    .replace(' second', 's');
+    
+    if (formatted.startsWith('now')) {
+        return 'now';
+    }
+
+    return formatted;
 }
 
 /**

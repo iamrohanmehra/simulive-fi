@@ -25,11 +25,15 @@ interface UserData {
 }
 
 const EmailVerificationModal = ({ isOpen, onVerified }: EmailVerificationModalProps) => {
-  const { verifyEmailWithAPI } = useAuth();
+  const { loginWithCodekaro } = useAuth();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [userData, setUserData] = useState<UserData | null>(null);
+
+  // If user is already authenticated (firebase user exists), show success state or just call onVerified
+  // But usually this modal is only shown if !user. 
+  // However, we want to show the "Continue" screen if we just verified.
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,15 +46,19 @@ const EmailVerificationModal = ({ isOpen, onVerified }: EmailVerificationModalPr
     setError('');
 
     try {
-      const result = await verifyEmailWithAPI(email);
+      // This will verify AND login anonymously
+      // If successful, 'user' in context will update.
+      const data = await loginWithCodekaro(email);
       
-      if (result.verified && result.userData) {
-        setUserData(result.userData);
+      if (data) {
+        setUserData(data);
       } else {
-        setError('Email not found. Please use the email you registered with.');
+        // Fallback if no data returned but no error (shouldn't happen with current logic)
+        onVerified();
       }
+      
     } catch (err) {
-      setError('An error occurred during verification. Please try again.');
+      setError('Email not found or verification failed. Please use the email you registered with.');
     } finally {
       setLoading(false);
     }

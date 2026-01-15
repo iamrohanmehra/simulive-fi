@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import useChat from '@/hooks/useChat';
+import { logEvent } from '@/lib/analytics';
 
 interface PollCreatorProps {
   sessionId: string;
@@ -91,6 +92,11 @@ const PollCreator = forwardRef<PollCreatorRef, PollCreatorProps>(({ sessionId, o
 
       // Broadcast system message
       await sendMessage(`New poll: ${question.trim()}`, 'system');
+
+      logEvent({
+        name: 'poll_created',
+        params: { session_id: sessionId, question: question.trim() }
+      });
 
       toast.success('Poll created successfully');
       

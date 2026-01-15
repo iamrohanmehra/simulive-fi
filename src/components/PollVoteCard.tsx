@@ -3,6 +3,7 @@ import type { Poll } from '@/lib/types';
 import { pollVotesCollection } from '@/lib/firestore-collections';
 import { query, where, onSnapshot, serverTimestamp, runTransaction, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { logEvent } from '@/lib/analytics';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -85,6 +86,11 @@ export default function PollVoteCard({ poll, userId }: PollVoteCardProps) {
         });
 
         transaction.update(pollRef, { options: newOptions });
+      });
+
+      logEvent({
+        name: 'poll_voted',
+        params: { poll_id: poll.id, option: poll.options.find(o => o.id === selectedOptionId)?.label || 'unknown' }
       });
 
       toast.success("Vote submitted!");

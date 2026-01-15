@@ -19,6 +19,7 @@ import { db } from '@/lib/firebase';
 import type { Message } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { logEvent } from '@/lib/analytics';
 
 interface UseChatReturn {
   messages: Message[];
@@ -144,6 +145,11 @@ export default function useChat(sessionId: string): UseChatReturn {
       }
 
       await addDoc(collection(db, 'messages'), messageData);
+      
+      logEvent({
+        name: 'message_sent',
+        params: { session_id: sessionId }
+      });
       
     } catch (error) {
       toast.error('Failed to send message');

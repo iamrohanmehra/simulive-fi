@@ -15,14 +15,17 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Login</CardTitle>
-          <CardDescription>Sign in to your account to continue</CardDescription>
+          <CardTitle>Session Access</CardTitle>
+          <CardDescription>Enter a Session ID to join directly</CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Placeholder for actual login form */}
           <div className="flex flex-col gap-4">
-             <p className="text-sm text-muted-foreground">Login form implementation pending...</p>
-             <Button>Sign In</Button>
+             <p className="text-sm text-muted-foreground">
+                Please navigate directly to a session URL (e.g., /session/your-id).
+             </p>
+             <Button asChild>
+                <a href="/session/session-live">Go to Demo Session</a>
+             </Button>
           </div>
         </CardContent>
       </Card>

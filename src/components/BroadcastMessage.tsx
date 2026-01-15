@@ -1,6 +1,7 @@
 import { useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Megaphone, Send } from 'lucide-react';
 import { toast } from 'sonner';
+import { logEvent } from '@/lib/analytics';
 
 import {
   Card,
@@ -52,6 +53,12 @@ const BroadcastMessage = forwardRef<BroadcastMessageRef, BroadcastMessageProps>(
       
       toast.success('Broadcast sent successfully');
       setBroadcastText('');
+      
+      logEvent({
+        name: 'broadcast_sent',
+        params: { session_id: sessionId }
+      });
+
       if (onSent) {
         onSent();
       }
