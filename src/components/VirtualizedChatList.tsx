@@ -21,7 +21,7 @@ interface VirtualizedChatListProps {
   onReply?: (message: Message) => void;
   onSelect?: (messageId: string, selected: boolean) => void;
   selectedIds?: Set<string>;
-  bottomRef?: React.RefObject<HTMLDivElement | null>;
+  bottomRef?: React.RefObject<HTMLDivElement>;
 }
 
 const VirtualizedChatList = React.memo(({

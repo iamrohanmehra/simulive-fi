@@ -1,9 +1,8 @@
 name = "simulive-fi"
 compatibility_date = "2024-09-23"
 
-[build]
-command = "bun run build"
-output_dir = "dist"
+# Pages build configuration
+pages_build_output_dir = "dist"
 
 # Environment variables are managed in the Cloudflare Pages dashboard
 # but can be referenced here for documentation
