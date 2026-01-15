@@ -18,6 +18,7 @@ import ChatArchive from '@/components/ChatArchive';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import SessionStatusBadge from '@/components/SessionStatusBadge';
 import { formatTimestamp, formatDuration } from '@/lib/format-time';
+import { startTrace, endTrace } from '@/lib/performance';
 
 
 
@@ -33,39 +34,51 @@ export default function AnalyticsPage() {
     if (!sessionId) return;
 
     const fetchData = async () => {
+      const fetchTrace = startTrace('analytics_data_fetch');
       try {
         setLoading(true);
         setError(null);
 
-        // 1. Fetch Session
-        const sessionSnap = await getDoc(sessionDoc(sessionId));
+        // Parallel fetch for Session, Analytics, and Viewers
+        const sessionPromise = getDoc(sessionDoc(sessionId));
+        const analyticsPromise = getDoc(sessionAnalyticsDoc(sessionId));
+        const viewersPromise = getDocs(
+          query(viewerSessionsCollection, where('sessionId', '==', sessionId), orderBy('joinedAt', 'asc'))
+        );
+
+        const [sessionSnap, analyticsSnap, viewersSnap] = await Promise.all([
+          sessionPromise,
+          analyticsPromise,
+          viewersPromise
+        ]);
+
+        // 1. Handle Session
         if (!sessionSnap.exists()) {
           setError("Session not found");
+          setLoading(false);
           return;
         }
         setSession(sessionSnap.data());
 
-        // 2. Fetch or Compute Analytics
-        const analyticsSnap = await getDoc(sessionAnalyticsDoc(sessionId));
+        // 2. Handle Analytics make sure to check if it exists
         if (analyticsSnap.exists()) {
           setAnalytics(analyticsSnap.data());
         } else {
-          // Compute if not exists
           try {
-            const computed = await computeSessionAnalytics(sessionId);
-            setAnalytics(computed);
+             // Only compute if we really need to, but it's often better to just show "Processing" or trigger it explicitly. 
+             // For now, retaining original logic to compute if missing.
+             const computeTrace = startTrace('analytics_computation_fallback');
+             const computed = await computeSessionAnalytics(sessionId);
+             endTrace(computeTrace);
+             setAnalytics(computed);
           } catch (computeErr) {
-            console.error("Failed to compute analytics:", computeErr);
-            toast.error("Failed to compute analytics");
+             console.error("Failed to compute analytics:", computeErr);
+             // Non-blocking error for UI generally
+             toast.error("Failed to compute analytics");
           }
         }
 
-        // 3. Fetch Viewer Sessions
-        const viewersSnap = await getDocs(
-          query(viewerSessionsCollection, where('sessionId', '==', sessionId), orderBy('joinedAt', 'asc'))
-        );
-        
-        // Map docs to data
+        // 3. Handle Viewers
         setViewerDetails(viewersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
 
       } catch (err) {
@@ -74,6 +87,7 @@ export default function AnalyticsPage() {
         toast.error("Failed to load analytics data");
       } finally {
         setLoading(false);
+        endTrace(fetchTrace);
       }
     };
 

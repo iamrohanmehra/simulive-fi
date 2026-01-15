@@ -114,7 +114,7 @@ const AdminChatFeed = ({ sessionId, onReply }: AdminChatFeedProps) => {
         <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
             Live Chat Feed
-            <Badge variant="secondary" className="text-xs font-normal">
+            <Badge variant="secondary" className="text-xs font-normal" aria-live="polite">
                 {messages.length} messages
             </Badge>
             </CardTitle>
@@ -142,16 +142,16 @@ const AdminChatFeed = ({ sessionId, onReply }: AdminChatFeedProps) => {
                 {selectedIds.size} selected
             </div>
             <div className="flex items-center gap-1">
-                <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => setSelectedIds(new Set())}>
+                <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => setSelectedIds(new Set())} aria-label="Clear selection">
                     Clear
                 </Button>
-                <Button size="sm" variant="outline" className="h-8 px-2 gap-1 text-xs" onClick={handleBulkExport}>
+                <Button size="sm" variant="outline" className="h-8 px-2 gap-1 text-xs" onClick={handleBulkExport} aria-label="Export selected messages">
                     <Download className="h-3 w-3" /> Export
                 </Button>
-                <Button size="sm" variant="outline" className="h-8 px-2 gap-1 text-xs" onClick={handleBulkPin}>
+                <Button size="sm" variant="outline" className="h-8 px-2 gap-1 text-xs" onClick={handleBulkPin} aria-label="Pin selected messages">
                     <Pin className="h-3 w-3" /> Pin
                 </Button>
-                <Button size="sm" variant="destructive" className="h-8 px-2 gap-1 text-xs" onClick={() => setShowDeleteConfirm(true)}>
+                <Button size="sm" variant="destructive" className="h-8 px-2 gap-1 text-xs" onClick={() => setShowDeleteConfirm(true)} aria-label="Delete selected messages">
                     <Trash2 className="h-3 w-3" /> Delete
                 </Button>
             </div>
@@ -205,4 +205,4 @@ const AdminChatFeed = ({ sessionId, onReply }: AdminChatFeedProps) => {
   );
 };
 
-export default AdminChatFeed;
+export default React.memo(AdminChatFeed);

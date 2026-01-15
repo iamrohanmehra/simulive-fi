@@ -131,6 +131,7 @@ const SessionThumbnailUpload = ({ sessionId, currentThumbnail }: SessionThumbnai
               src={preview} 
               alt="Session thumbnail" 
               className="w-full h-full object-cover"
+              loading="lazy"
             />
             <button
               onClick={handleRemove}

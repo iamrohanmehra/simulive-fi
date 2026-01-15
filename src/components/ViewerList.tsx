@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Users, User as UserIcon } from 'lucide-react';
-import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, limit, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -28,28 +28,48 @@ const ViewerList = ({ sessionId }: ViewerListProps) => {
   useEffect(() => {
     if (!sessionId) return;
 
-    // Create query for active viewers (leftAt is null)
-    const viewersQuery = query(
-      collection(db, 'viewer_sessions'),
-      where('sessionId', '==', sessionId),
-      where('leftAt', '==', null),
-      orderBy('joinedAt', 'desc') // Newest first
-    );
+    let mounted = true;
 
-    const unsubscribe = onSnapshot(viewersQuery, (snapshot) => {
-      const activeViewers = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Viewer[];
-      
-      setViewers(activeViewers);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching viewers:", error);
-      setLoading(false);
-    });
+    const fetchViewers = async () => {
+      try {
+        // Create query for active viewers (leftAt is null)
+        const viewersQuery = query(
+          collection(db, 'viewer_sessions'),
+          where('sessionId', '==', sessionId),
+          where('leftAt', '==', null),
+          orderBy('joinedAt', 'desc'), // Newest first
+          limit(100) // Limit to 100
+        );
+        
+        // Use getDocs instead of onSnapshot for polling
+        const snapshot = await getDocs(viewersQuery);
+        
+        if (mounted) {
+          const activeViewers = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as Viewer[];
+          
+          setViewers(activeViewers);
+          setLoading(false);
+        }
+      } catch (error) {
+        if (mounted) {
+           console.error("Error fetching viewers:", error);
+           setLoading(false);
+        }
+      }
+    };
 
-    return () => unsubscribe();
+    fetchViewers(); // Initial fetch
+    
+    // throttle updates to 10s
+    const interval = setInterval(fetchViewers, 10000); 
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
   }, [sessionId]);
 
   const getInitials = (name?: string, email?: string) => {

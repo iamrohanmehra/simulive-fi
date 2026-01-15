@@ -5,6 +5,7 @@ import 'vidstack/styles/base.css';
 import { useServerTimeSync } from '@/hooks/useServerTimeSync';
 import type { Session } from '@/lib/types';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { startTrace, endTrace, recordMetric } from '@/lib/performance';
 
 interface DualVideoPlayerProps {
   session: Session;
@@ -13,6 +14,29 @@ interface DualVideoPlayerProps {
 const DualVideoPlayer = ({ session }: DualVideoPlayerProps) => {
   const mainPlayerRef = useRef<MediaPlayerElement>(null);
   const facePlayerRef = useRef<MediaPlayerElement>(null);
+  
+  // Performance: Trace video start
+  useEffect(() => {
+    const t = startTrace('video_playback_start');
+    
+    // We'll stop this trace when the video actually plays
+    const handlePlay = () => endTrace(t);
+    
+    // We need to attach to element, but ref is explicitly typed as instance or element?
+    // mainPlayerRef is RefObject<MediaPlayerElement> in previous code, 
+    // but in my replacement I see MediaPlayerInstance usage or conflict.
+    // The previous file content shows: useRef<MediaPlayerElement>(null).
+    // So I should stick to that or cast.
+    const player = mainPlayerRef.current;
+    if (player) {
+      (player as HTMLElement).addEventListener('play', handlePlay, { once: true });
+    }
+    
+    return () => {
+        endTrace(t);
+        (player as HTMLElement)?.removeEventListener('play', handlePlay);
+    };
+  }, []);
   
   // Get the calculated live offset from server time
   const { liveOffset, isSynced } = useServerTimeSync(session.id, session.scheduledStart);
@@ -31,6 +55,7 @@ const DualVideoPlayer = ({ session }: DualVideoPlayerProps) => {
       // If drift is significant (> 0.25s), seek to live offset
       if (drift > 0.25) {
         playerInstance.currentTime = liveOffset;
+        recordMetric(null, 'drift_correction_event', 1);
       }
       
       // Ensure player is playing
@@ -58,6 +83,32 @@ const DualVideoPlayer = ({ session }: DualVideoPlayerProps) => {
     }
   }, [isSynced, liveOffset]);
 
+  // Resource cleanup on unmount
+  useEffect(() => {
+    return () => {
+      const cleanupPlayer = (player: MediaPlayerElement | null) => {
+        if (player) {
+          try {
+            const playerInstance = player as any;
+            if (typeof playerInstance.pause === 'function') playerInstance.pause();
+            
+            // Explicitly clearing src to release memory
+            if (typeof playerInstance.setAttribute === 'function') {
+                playerInstance.setAttribute('src', '');
+            }
+            
+            if (typeof playerInstance.load === 'function') playerInstance.load();
+          } catch (e) {
+            // Ignore errors during cleanup
+            console.warn('Player cleanup error', e);
+          }
+        }
+      };
+
+      cleanupPlayer(mainPlayerRef.current);
+      cleanupPlayer(facePlayerRef.current);
+    };
+  }, []);
   if (!isSynced) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-black">
@@ -65,6 +116,7 @@ const DualVideoPlayer = ({ session }: DualVideoPlayerProps) => {
       </div>
     );
   }
+
 
   return (
     <div className="relative w-full h-full bg-black overflow-hidden">

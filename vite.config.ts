@@ -3,6 +3,7 @@ import path from "path"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
+import { visualizer } from "rollup-plugin-visualizer"
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -13,6 +14,12 @@ export default defineConfig({
       org: "simulive-fi", // Replace with your Sentry Org
       project: "javascript-react", // Replace with your Sentry Project
       authToken: process.env.SENTRY_AUTH_TOKEN,
+    }),
+    visualizer({
+      filename: 'dist/stats.html',
+      open: false,
+      gzipSize: true,
+      brotliSize: true,
     }),
   ],
   resolve: {

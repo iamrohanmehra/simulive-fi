@@ -14,7 +14,8 @@ export type AnalyticsEvent =
   | { name: 'poll_voted'; params: { poll_id: string; option: string } }
   | { name: 'broadcast_sent'; params: { session_id: string } }
   | { name: 'session_ended'; params: { session_id: string; duration?: number } }
-  | { name: 'admin_action'; params: { action_type: string; session_id: string } };
+  | { name: 'admin_action'; params: { action_type: string; session_id: string } }
+  | { name: 'app_error'; params: { category: string; message: string; session_id?: string; action?: string } };
 
 export const logEvent = (event: AnalyticsEvent) => {
   if (import.meta.env.PROD && analytics) {

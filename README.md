@@ -108,3 +108,17 @@ Merging to `main` triggers a **Production Deployment**.
 2. Add a rule for `main`.
 3. Check **"Require status checks to pass before merging"** and select
    `Cloudflare Pages`.
+
+## Accessibility Features
+
+This project targets WCAG 2.1 AA compliance with the following features:
+
+- **ARIA Labels**: Added to all icon-only buttons for screen reader support.
+- **Skip Navigation**: Hidden link to skip directly to main content.
+- **Focus Management**:
+  - Visible focus indicators (`focus-visible`) for keyboard navigation.
+  - Trap focus within modals using Radix UI primitives.
+- **Semantic HTML**: Proper use of `<main>`, `<section>`, `<header>`, and
+  `<nav>`.
+- **Live Regions**: `aria-live` used for dynamic content like chat feeds and
+  viewer counts.

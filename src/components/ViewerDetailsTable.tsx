@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ArrowUpDown, Download, Trophy, Printer } from 'lucide-react';
 import type { ViewerSession } from '@/lib/types';
 import { formatTimestamp, formatDuration } from '@/lib/format-time';
@@ -39,20 +39,22 @@ export default function ViewerDetailsTable({ viewers, sessionDuration, sessionId
     return (left - joined) / 1000;
   };
 
-  const sortedViewers = [...viewers].sort((a, b) => {
-    let aValue = 0;
-    let bValue = 0;
+  const sortedViewers = useMemo(() => {
+    return [...viewers].sort((a, b) => {
+      let aValue = 0;
+      let bValue = 0;
 
-    if (sortField === 'duration') {
-      aValue = getViewerDuration(a);
-      bValue = getViewerDuration(b);
-    } else {
-      aValue = a.joinedAt ? new Date(a.joinedAt).getTime() : 0;
-      bValue = b.joinedAt ? new Date(b.joinedAt).getTime() : 0;
-    }
+      if (sortField === 'duration') {
+        aValue = getViewerDuration(a);
+        bValue = getViewerDuration(b);
+      } else {
+        aValue = a.joinedAt ? new Date(a.joinedAt).getTime() : 0;
+        bValue = b.joinedAt ? new Date(b.joinedAt).getTime() : 0;
+      }
 
-    return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
-  });
+      return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+    });
+  }, [viewers, sortField, sortDirection]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {

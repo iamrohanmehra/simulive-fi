@@ -1,3 +1,4 @@
+import React from 'react';
 import { generateColorFromName } from '@/lib/username-colors';
 import { formatRelativeTime } from '@/lib/format-time';
 import { Pin, Trash2, Reply } from 'lucide-react';
@@ -68,7 +69,7 @@ const ChatMessage = ({
         </div>
       )}
       <Avatar className="h-8 w-8 shrink-0">
-        <AvatarImage src={message.userAvatar || undefined} />
+        <AvatarImage src={message.userAvatar || undefined} loading="lazy" />
         <AvatarFallback className={cn("text-xs font-semibold", colorClass, bgClass)}>
           {initials}
         </AvatarFallback>
@@ -147,4 +148,21 @@ const ChatMessage = ({
   );
 };
 
-export default ChatMessage;
+export default React.memo(ChatMessage, (prevProps, nextProps) => {
+  // Only re-render if:
+  // 1. Message ID changes (unlikely for same component instance but possible)
+  // 2. Message content/pin/delete status changes
+  // 3. Selection state changes
+  // 4. Admin mode changes
+  
+  return (
+    prevProps.message.id === nextProps.message.id &&
+    prevProps.message.content === nextProps.message.content &&
+    prevProps.message.isPinned === nextProps.message.isPinned &&
+    prevProps.message.isDeleted === nextProps.message.isDeleted &&
+    prevProps.message.userAvatar === nextProps.message.userAvatar &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.selectionMode === nextProps.selectionMode &&
+    prevProps.isAdmin === nextProps.isAdmin
+  );
+});

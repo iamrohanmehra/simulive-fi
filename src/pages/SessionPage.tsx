@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import useSessionState from '@/hooks/useSessionState';
 import useViewerTracking from '@/hooks/useViewerTracking';
 import useCurrentViewers from '@/hooks/useCurrentViewers';
 import CountdownScreen from '@/components/CountdownScreen';
-import DualVideoPlayer from '@/components/DualVideoPlayer';
+import { Suspense, lazy } from 'react';
 import ChatSidebar, { type ChatSidebarRef } from '@/components/ChatSidebar';
 import SessionEndedScreen from '@/components/SessionEndedScreen';
 import EmailVerificationModal from '@/components/EmailVerificationModal';
@@ -19,9 +19,22 @@ import useKeyboardShortcuts from '@/hooks/useKeyboardShortcuts';
 import ConnectionStatus from '@/components/ConnectionStatus';
 import { logEvent } from '@/lib/analytics';
 
+// Lazy load heavy Video Player
+import { startTrace, endTrace } from '@/lib/performance';
+import { logError } from '@/lib/error-logger';
+
+// Lazy load heavy Video Player
+const DualVideoPlayer = lazy(() => import('@/components/DualVideoPlayer'));
+
 const SessionPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
   const { user } = useAuth();
+  
+  // Performance Tracing
+  useEffect(() => {
+    const t = startTrace('session_page_load');
+    return () => endTrace(t);
+  }, []);
   
   // Local state for modal flow
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -103,15 +116,15 @@ const SessionPage = () => {
     }
   }, [user, loading, hasJoined]);
 
-  const handleVerified = () => {
+  const handleVerified = useCallback(() => {
     // This is called when EmailVerificationModal succeeds.
     // The modal itself calls loginWithCodekaro, which sets the user.
     // So the effect above [user] will trigger and close the modal.
     // We just ensure state is clean here.
     setShowEmailModal(false);
-  };
+  }, []);
 
-  const handleJoin = () => {
+  const handleJoin = useCallback(() => {
     setHasJoined(true);
     setShowJoinModal(false);
     
@@ -124,7 +137,7 @@ const SessionPage = () => {
         }
       });
     }
-  };
+  }, [sessionId, user]);
 
   // Poll sync logic
   useEffect(() => {
@@ -154,6 +167,8 @@ const SessionPage = () => {
         // BUT, we need to distinguish between "just loaded empty" and "was active, now empty".
         // State updates are async, so let's rely on an effect that watches activePoll.
       }
+    }, (error) => {
+        logError(error, { action: 'poll_sync', sessionId });
     });
 
     return () => unsubscribe();
@@ -234,59 +249,63 @@ const SessionPage = () => {
       />
 
       {/* Main Content Render */}
-      {(() => {
-        switch (sessionState) {
-          case 'scheduled':
-            return (
-              <CountdownScreen 
-                scheduledStart={new Date(session.scheduledStart)}
-                sessionTitle={session.title}
-                waitingCount={viewerCount}
-              />
-            );
+      <main id="main-content" className="w-full h-full">
+        {(() => {
+          switch (sessionState) {
+            case 'scheduled':
+              return (
+                <CountdownScreen 
+                  scheduledStart={new Date(session.scheduledStart)}
+                  sessionTitle={session.title}
+                  waitingCount={viewerCount}
+                />
+              );
 
-          case 'live':
-            // Only show live content if joined
-            if (!hasJoined) {
-               // Show a background or loader or just empty while modal is up
-               // The modal backdrop covers this usually.
-               return (
-                 <div className="h-screen w-full bg-black flex items-center justify-center">
-                   {/* Background placeholder */}
-                 </div>
-               );
-            }
+            case 'live':
+              // Only show live content if joined
+              if (!hasJoined) {
+                 // Show a background or loader or just empty while modal is up
+                 // The modal backdrop covers this usually.
+                 return (
+                   <div className="h-screen w-full bg-black flex items-center justify-center">
+                     {/* Background placeholder */}
+                   </div>
+                 );
+              }
 
-            return (
-              <div className="flex h-screen w-full bg-background overflow-hidden">
-                {/* Main Content - Video Player */}
-                <div className="flex-1 relative bg-black">
-                  <DualVideoPlayer session={session} />
+              return (
+                <div className="flex h-screen w-full bg-background overflow-hidden">
+                  {/* Main Content - Video Player */}
+                  <div className="flex-1 relative bg-black">
+                    <Suspense fallback={<div className="flex h-full w-full items-center justify-center"><LoadingSpinner text="Loading player..." /></div>}>
+                      <DualVideoPlayer session={session} />
+                    </Suspense>
+                  </div>
+
+                  {/* Right Sidebar - Chat */}
+                  <div className="w-[350px] border-l border-border h-full flex-none">
+                    <ChatSidebar 
+                      ref={chatSidebarRef}
+                      sessionId={sessionId} 
+                      isAdmin={false} 
+                      activePoll={displayedPoll}
+                    />
+                  </div>
                 </div>
+              );
 
-                {/* Right Sidebar - Chat */}
-                <div className="w-[350px] border-l border-border h-full flex-none">
-                  <ChatSidebar 
-                    ref={chatSidebarRef}
-                    sessionId={sessionId} 
-                    isAdmin={false} 
-                    activePoll={displayedPoll}
-                  />
-                </div>
-              </div>
-            );
+            case 'ended':
+              return (
+                <SessionEndedScreen 
+                  sessionTitle={session.title}
+                />
+              );
 
-          case 'ended':
-            return (
-              <SessionEndedScreen 
-                sessionTitle={session.title}
-              />
-            );
-
-          default:
-            return null;
-        }
-      })()}
+            default:
+              return null;
+          }
+        })()}
+      </main>
     </>
   );
 };

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Poll } from '@/lib/types';
 import { pollVotesCollection } from '@/lib/firestore-collections';
 import { query, where, onSnapshot, serverTimestamp, runTransaction, doc } from 'firebase/firestore';
@@ -17,7 +17,7 @@ interface PollVoteCardProps {
   userId: string;
 }
 
-export default function PollVoteCard({ poll, userId }: PollVoteCardProps) {
+function PollVoteCard({ poll, userId }: PollVoteCardProps) {
   const [hasVoted, setHasVoted] = useState(false);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -171,3 +171,5 @@ export default function PollVoteCard({ poll, userId }: PollVoteCardProps) {
     </Card>
   );
 }
+
+export default React.memo(PollVoteCard);

@@ -20,6 +20,8 @@ import type { Message } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { logEvent } from '@/lib/analytics';
+import { startTrace, endTrace } from '@/lib/performance';
+import { logError } from '@/lib/error-logger';
 
 interface UseChatReturn {
   messages: Message[];
@@ -37,6 +39,8 @@ export default function useChat(sessionId: string): UseChatReturn {
   const [lastMessageTime, setLastMessageTime] = useState(0);
   
 
+  // Cache for simple deduping of initial loads per session
+  const cacheRef = useState<Record<string, { messages: Message[], timestamp: number }>>({})[0];
 
   useEffect(() => {
     if (!sessionId) {
@@ -45,6 +49,18 @@ export default function useChat(sessionId: string): UseChatReturn {
     }
 
     setLoading(true);
+
+    // Check cache
+    const now = Date.now();
+    const cached = cacheRef[sessionId];
+    if (cached && (now - cached.timestamp < 10000)) { // 10s cache
+      setMessages(cached.messages);
+      setLoading(false);
+      // We still want to listen for new messages, so we proceed to setup listener,
+      // but we assume the cache is close enough to 'initial state'
+    }
+
+    const loadTrace = startTrace('chat_load_time');
 
     const q = query(
       collection(db, 'messages'),
@@ -65,9 +81,6 @@ export default function useChat(sessionId: string): UseChatReturn {
           } as Message;
         });
 
-        // Store the last document from the initial fetch for pagination (if we strictly followed that)
-        // But for loadMore, we usually want to start after the *oldest* message we have in state.
-        
         setMessages((prevMessages) => {
           // If this is the initial load or a real-time update
           if (newMessages.length === 0) return prevMessages;
@@ -87,10 +100,19 @@ export default function useChat(sessionId: string): UseChatReturn {
             return time < oldestLiveTime && !newMessages.find(nm => nm.id === msg.id);
           });
 
-          return [...newMessages, ...historyMessages];
+          const merged = [...newMessages, ...historyMessages];
+          
+          // Update cache
+          cacheRef[sessionId] = { 
+            messages: merged, 
+            timestamp: Date.now() 
+          };
+          
+          return merged;
         });
         
         setLoading(false);
+        endTrace(loadTrace);
       },
       () => {
         toast.error('Failed to load chat messages');
@@ -126,6 +148,7 @@ export default function useChat(sessionId: string): UseChatReturn {
     }
 
     try {
+      const sendTrace = startTrace('message_send_time');
       setLastMessageTime(now);
       
       const messageData: any = {
@@ -145,6 +168,7 @@ export default function useChat(sessionId: string): UseChatReturn {
       }
 
       await addDoc(collection(db, 'messages'), messageData);
+      endTrace(sendTrace);
       
       logEvent({
         name: 'message_sent',
@@ -152,6 +176,7 @@ export default function useChat(sessionId: string): UseChatReturn {
       });
       
     } catch (error) {
+      logError(error as Error, { action: 'send_message', sessionId });
       toast.error('Failed to send message');
       throw error;
     }
@@ -173,7 +198,8 @@ export default function useChat(sessionId: string): UseChatReturn {
       });
       
       toast.success(isPinned ? 'Message unpinned' : 'Message pinned');
-    } catch (_error) {
+    } catch (error) {
+      logError(error as Error, { action: 'pin_message', sessionId, messageId });
       toast.error('Failed to pin message');
     }
   };
@@ -186,7 +212,8 @@ export default function useChat(sessionId: string): UseChatReturn {
         isDeleted: true
       });
       toast.success('Message deleted');
-    } catch (_error) {
+    } catch (error) {
+      logError(error as Error, { action: 'delete_message', sessionId, messageId });
       toast.error('Failed to delete message');
     }
   };
@@ -231,7 +258,8 @@ export default function useChat(sessionId: string): UseChatReturn {
 
       setMessages(prev => [...prev, ...olderMessages]);
 
-    } catch (_error) {
+    } catch (error) {
+      logError(error as Error, { action: 'load_more_messages', sessionId });
       toast.error('Failed to load older messages');
     }
   };

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Users, Play, BarChart2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -73,15 +73,15 @@ const LiveAdminPage = () => {
     }
   ]);
 
-  const handleReplyUser = (userId: string) => {
+  const handleReplyUser = useCallback((userId: string) => {
     setSelectedUserId(userId);
-  };
+  }, []);
 
-  const handleEndSessionClick = () => {
+  const handleEndSessionClick = useCallback(() => {
     setShowEndSessionDialog(true);
-  };
+  }, []);
 
-  const handleEndSessionConfirm = async () => {
+  const handleEndSessionConfirm = useCallback(async () => {
     if (!sessionId) return;
     try {
       toast.info('Ending session...');
@@ -104,7 +104,7 @@ const LiveAdminPage = () => {
       console.error('Failed to end session:', error);
       toast.error('Failed to end session properly');
     }
-  };
+  }, [sessionId, navigate]);
 
   if (sessionLoading) {
     return <LoadingSpinner size="lg" text="Loading session..." className="min-h-screen" />;
@@ -137,7 +137,7 @@ const LiveAdminPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-6 lg:p-8 space-y-6">
+    <main id="main-content" className="min-h-screen bg-background p-4 md:p-6 lg:p-8 space-y-6">
       <ConnectionStatus />
       
       <HelpModal 
@@ -162,7 +162,7 @@ const LiveAdminPage = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-12rem)]">
         {/* Left Column: Controls & Stats */}
-        <div className="space-y-6">
+        <section className="space-y-6" aria-label="Session Controls">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="border-l-4 border-l-indigo-500 shadow-md">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -172,7 +172,13 @@ const LiveAdminPage = () => {
                 <Users className="h-4 w-4 text-indigo-500" />
               </CardHeader>
               <CardContent>
-                <div key={viewerCount} className="text-4xl font-bold text-indigo-600 animate-[pulse_1s_ease-in-out_1]">
+                <div 
+                    key={viewerCount} 
+                    className="text-4xl font-bold text-indigo-600 animate-[pulse_1s_ease-in-out_1]"
+                    aria-live="polite"
+                    aria-atomic="true"
+                    aria-label={`${viewerCount} active viewers`}
+                >
                   {viewerCount}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -196,15 +202,17 @@ const LiveAdminPage = () => {
           />
 
           <div className="flex justify-end">
-             <Button variant="destructive" size="lg" className="w-full" onClick={handleEndSessionClick}>End Session</Button>
+             <Button variant="destructive" size="lg" className="w-full" onClick={handleEndSessionClick} aria-label="End Session">End Session</Button>
           </div>
-        </div>
+        </section>
 
         {/* Right Column: Chat Feed */}
-        <AdminChatFeed 
-          sessionId={sessionId || ''} 
-          onReply={handleReplyUser}
-        />
+        <section aria-label="Chat Feed">
+            <AdminChatFeed 
+            sessionId={sessionId || ''} 
+            onReply={handleReplyUser}
+            />
+        </section>
       </div>
 
       <ConfirmDialog
@@ -216,7 +224,7 @@ const LiveAdminPage = () => {
         confirmText="End Session"
         cancelText="Cancel"
       />
-    </div>
+    </main>
   );
 };
 
