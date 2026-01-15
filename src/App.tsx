@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { Toaster } from '@/components/ui/sonner';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import ConnectionStatus from '@/components/ConnectionStatus';
 
 // Lazy Loaded Pages
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
@@ -14,6 +15,7 @@ const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 
 // Route Guards
 import Navigation from '@/components/Navigation';
+import AdminRoute from '@/components/AdminRoute';
 import { usePageTracking } from '@/hooks/usePageTracking';
 
 // Inner component to use hook inside Router
@@ -51,14 +53,22 @@ function AppContent() {
               element={<SessionPage />}
             />
 
-            {/* Admin Routes - Public as requested */}
+            {/* FIXED #41: Admin Routes - Now Protected */}
             <Route
               path="/live-admin/:sessionId"
-              element={<LiveAdminPage />}
+              element={
+                <AdminRoute>
+                  <LiveAdminPage />
+                </AdminRoute>
+              }
             />
             <Route
               path="/analytics/:sessionId"
-              element={<AnalyticsPage />}
+              element={
+                <AdminRoute>
+                  <AnalyticsPage />
+                </AdminRoute>
+              }
             />
 
             {/* Redirect root to sessions */}
@@ -69,6 +79,8 @@ function AppContent() {
           </Routes>
         </Suspense>
         <Toaster />
+        {/* FIXED #5: ConnectionStatus in layout instead of each page */}
+        <ConnectionStatus />
     </>
   );
 }

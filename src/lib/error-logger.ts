@@ -7,7 +7,8 @@ interface ErrorContext {
   userId?: string | null;
   sessionId?: string;
   action?: string;
-  [key: string]: any;
+  // FIXED #36: Use unknown instead of any for index signature
+  [key: string]: unknown;
 }
 
 // Configuration

@@ -9,6 +9,7 @@ interface UseSessionStateReturn {
   sessionState: SessionState;
   session: Session | null;
   loading: boolean;
+  error: Error | null; // FIXED #11: Added error state
 }
 
 /**
@@ -16,18 +17,22 @@ interface UseSessionStateReturn {
  * Determines session state based on isLive flag and scheduledStart time.
  * 
  * @param sessionId - The ID of the session to track
- * @returns Object containing sessionState, session data, and loading status
+ * @returns Object containing sessionState, session data, loading status, and error
  */
 const useSessionState = (sessionId: string): UseSessionStateReturn => {
   const [sessionState, setSessionState] = useState<SessionState>('scheduled');
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<Error | null>(null); // FIXED #11: Added error state
 
   useEffect(() => {
     if (!sessionId) {
       setLoading(false);
       return;
     }
+
+    // Reset error on new session
+    setError(null);
 
     // Get reference to the session document
     const sessionRef = sessionDoc(sessionId);
@@ -61,9 +66,12 @@ const useSessionState = (sessionId: string): UseSessionStateReturn => {
         }
 
         setLoading(false);
+        setError(null);
       },
-      (error) => {
-        console.error('Error fetching session:', error);
+      (err) => {
+        // FIXED #11: Set error state for UI to handle
+        console.error('Error fetching session:', err);
+        setError(err);
         setLoading(false);
       }
     );
@@ -74,7 +82,8 @@ const useSessionState = (sessionId: string): UseSessionStateReturn => {
     };
   }, [sessionId]);
 
-  return { sessionState, session, loading };
+  return { sessionState, session, loading, error };
 };
 
 export default useSessionState;
+

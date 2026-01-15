@@ -5,27 +5,41 @@
  * @param maxRetries Maximum number of retries (default: 3)
  * @param baseDelay Base delay in ms (default: 1000)
  */
+
+// FIXED #37: Type guard for Firestore-like errors
+interface FirestoreError {
+  code: string;
+  message: string;
+}
+
+function isFirestoreError(error: unknown): error is FirestoreError {
+  return typeof error === 'object' && error !== null && 'code' in error;
+}
+
 export async function retryOperation<T>(
   operation: () => Promise<T>, 
   maxRetries = 3, 
   baseDelay = 1000
 ): Promise<T> {
-  let lastError: any;
+  let lastError: unknown;
   
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await operation();
-    } catch (error: any) {
+    } catch (error: unknown) {
       lastError = error;
       
-      // Don't retry if it's not a transient error (optional refinenement)
+      // Don't retry if it's not a transient error
       // Usually 'unavailable' or 'deadline-exceeded' are retryable.
       // 'permission-denied' is not.
-      const isRetryable = 
-        !error.code || // Generic error
-        error.code === 'unavailable' || 
-        error.code === 'deadline-exceeded' ||
-        error.code === 'resource-exhausted';
+      let isRetryable = true;
+      
+      if (isFirestoreError(error)) {
+        isRetryable = 
+          error.code === 'unavailable' || 
+          error.code === 'deadline-exceeded' ||
+          error.code === 'resource-exhausted';
+      }
 
       if (!isRetryable || attempt === maxRetries) {
         throw error;
@@ -44,3 +58,4 @@ export async function retryOperation<T>(
   
   throw lastError;
 }
+

@@ -18,10 +18,17 @@ interface EmailVerificationModalProps {
   onVerified: () => void;
 }
 
+// FIXED #38: Define Course interface instead of any[]
+interface Course {
+  id: string;
+  name: string;
+  [key: string]: unknown;
+}
+
 interface UserData {
   name: string;
   avatar: string;
-  courses: any[];
+  courses: Course[];
 }
 
 const EmailVerificationModal = ({ isOpen, onVerified }: EmailVerificationModalProps) => {

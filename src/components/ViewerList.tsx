@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Users, User as UserIcon } from 'lucide-react';
 import { collection, query, where, orderBy, getDocs, limit, Timestamp } from 'firebase/firestore';
@@ -146,4 +146,5 @@ const ViewerList = ({ sessionId }: ViewerListProps) => {
   );
 };
 
-export default ViewerList;
+// FIXED #26: Add React.memo for performance optimization
+export default React.memo(ViewerList);

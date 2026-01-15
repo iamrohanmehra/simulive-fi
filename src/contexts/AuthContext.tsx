@@ -14,10 +14,17 @@ import { toast } from 'sonner';
  * Response type for email verification API
  */
 // Custom User Data from Codekaro API
-export interface UserData {
+export // FIXED #38: Define Course interface instead of any[]
+interface Course {
+  id: string;
+  name: string;
+  [key: string]: unknown;
+}
+
+interface UserData {
   name: string;
   avatar: string;
-  courses: any[];
+  courses: Course[];
 }
 
 interface EmailVerificationResponse {

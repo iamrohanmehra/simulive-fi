@@ -6,7 +6,8 @@ import {
   onSnapshot, 
   orderBy, 
   doc, 
-  updateDoc 
+  updateDoc,
+  Timestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import {
@@ -22,17 +23,18 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, PieChart, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
+// FIXED: Define local interface with proper types instead of any
 interface PollOption {
   id: number;
   text: string;
   votes: number;
 }
 
-interface Poll {
+interface AdminPoll {
   id: string;
   question: string;
   options: PollOption[];
-  createdAt: any;
+  createdAt: Timestamp | string;
   durationMinutes: number;
   isActive: boolean;
   totalVotes: number;
@@ -43,7 +45,7 @@ interface ActivePollsPanelProps {
 }
 
 const ActivePollsPanel = ({ sessionId }: ActivePollsPanelProps) => {
-  const [polls, setPolls] = useState<Poll[]>([]);
+  const [polls, setPolls] = useState<AdminPoll[]>([]);
   const [loading, setLoading] = useState(true);
   const [closingId, setClosingId] = useState<string | null>(null);
 
@@ -59,7 +61,7 @@ const ActivePollsPanel = ({ sessionId }: ActivePollsPanelProps) => {
       const activePolls = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      })) as Poll[];
+      })) as AdminPoll[];
       
       setPolls(activePolls);
       setLoading(false);

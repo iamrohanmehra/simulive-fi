@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface CountdownScreenProps {
   scheduledStart: Date;
@@ -109,4 +109,5 @@ const CountdownScreen = ({ scheduledStart, sessionTitle, waitingCount }: Countdo
   );
 };
 
-export default CountdownScreen;
+// FIXED #26: Add React.memo for performance optimization
+export default React.memo(CountdownScreen);

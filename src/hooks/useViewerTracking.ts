@@ -13,6 +13,15 @@ interface UseViewerTrackingProps {
   userId?: string | null;
 }
 
+// FIXED #18: Safe localStorage access for private browsing
+function safeGetLocalStorageItem(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
 export default function useViewerTracking({ sessionId, userId }: UseViewerTrackingProps) {
   const viewerSessionIdRef = useRef<string | null>(null);
 
@@ -25,7 +34,7 @@ export default function useViewerTracking({ sessionId, userId }: UseViewerTracki
         const viewerRef = await addDoc(collection(db, 'viewer_sessions'), {
           sessionId,
           userId: userId ?? null,
-          email: localStorage.getItem('userEmail') || null, // Fallback to localStorage for now
+          email: safeGetLocalStorageItem('userEmail') || null,
           joinedAt: serverTimestamp(),
           leftAt: null,
         });
@@ -48,17 +57,30 @@ export default function useViewerTracking({ sessionId, userId }: UseViewerTracki
     };
   }, [sessionId, userId]);
 
-  // 3. Handle browser close/reload
+  // FIXED #9: Handle browser close/reload with sendBeacon for reliability
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (viewerSessionIdRef.current) {
-        // Note: keeping this simple as sendBeacon/firestore sync is tricky in unload
-        // Ideally we rely on presence system or beacon, but for now we try standard update
-        // Firestore offline persistence might help queue this
-        const viewerRef = doc(db, 'viewer_sessions', viewerSessionIdRef.current);
-        updateDoc(viewerRef, {
-           leftAt: serverTimestamp() 
+        // Use sendBeacon for more reliable delivery during page unload
+        // Falls back to standard Firestore update if beacon fails
+        const beaconUrl = `/api/leave-session`;
+        const data = JSON.stringify({
+          viewerSessionId: viewerSessionIdRef.current,
+          leftAt: Date.now()
         });
+        
+        // Try sendBeacon first (more reliable for unload)
+        const beaconSent = navigator.sendBeacon?.(beaconUrl, data);
+        
+        if (!beaconSent) {
+          // Fallback: try standard update (may or may not complete)
+          const viewerRef = doc(db, 'viewer_sessions', viewerSessionIdRef.current);
+          updateDoc(viewerRef, {
+            leftAt: serverTimestamp() 
+          }).catch(() => {
+            // Expected to fail sometimes during unload
+          });
+        }
       }
     };
 
@@ -68,3 +90,4 @@ export default function useViewerTracking({ sessionId, userId }: UseViewerTracki
 
   return { viewerSessionId: viewerSessionIdRef.current };
 }
+

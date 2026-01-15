@@ -19,7 +19,8 @@ const VideoPlayer = forwardRef<MediaPlayerElement, VideoPlayerProps>(
         playsInline
         autoPlay
         controls={false}
-        onTimeUpdate={(detail: any) => {
+        // FIXED #39: Use proper type for time update detail
+        onTimeUpdate={(detail: { currentTime: number }) => {
           if (onTimeUpdate) {
             onTimeUpdate(detail.currentTime);
           }

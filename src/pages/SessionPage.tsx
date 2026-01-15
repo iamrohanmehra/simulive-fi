@@ -175,6 +175,7 @@ const SessionPage = () => {
   }, [sessionId]);
 
   // Handle poll grace period
+  // FIXED #12: Added displayedPoll to deps to fix stale closure
   useEffect(() => {
     let timeout: NodeJS.Timeout;
 
@@ -190,7 +191,7 @@ const SessionPage = () => {
     }
 
     return () => clearTimeout(timeout);
-  }, [activePoll]);
+  }, [activePoll, displayedPoll]);
 
 
   if (loading) {

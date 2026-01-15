@@ -7,6 +7,10 @@ import type { Session } from '@/lib/types';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { startTrace, endTrace, recordMetric } from '@/lib/performance';
 
+// FIXED #47 & Magic Numbers: Define constants
+const DRIFT_THRESHOLD_SECONDS = 0.25;
+const SYNC_INTERVAL_MS = 5000; // Changed from 500ms to 5000ms per project rules
+
 interface DualVideoPlayerProps {
   session: Session;
 }
@@ -22,11 +26,6 @@ const DualVideoPlayer = ({ session }: DualVideoPlayerProps) => {
     // We'll stop this trace when the video actually plays
     const handlePlay = () => endTrace(t);
     
-    // We need to attach to element, but ref is explicitly typed as instance or element?
-    // mainPlayerRef is RefObject<MediaPlayerElement> in previous code, 
-    // but in my replacement I see MediaPlayerInstance usage or conflict.
-    // The previous file content shows: useRef<MediaPlayerElement>(null).
-    // So I should stick to that or cast.
     const player = mainPlayerRef.current;
     if (player) {
       (player as HTMLElement).addEventListener('play', handlePlay, { once: true });
@@ -45,32 +44,33 @@ const DualVideoPlayer = ({ session }: DualVideoPlayerProps) => {
   useEffect(() => {
     if (!isSynced) return;
 
-    const syncPlayer = (player: MediaPlayerElement | null) => {
+    const syncPlayer = (player: MediaPlayerElement | null, playerName: string) => {
       if (!player) return;
 
-      const playerInstance = player as any;
+      const playerInstance = player as unknown as { currentTime: number; paused: boolean; play: () => Promise<void> };
       const currentTime = playerInstance.currentTime;
       const drift = Math.abs(currentTime - liveOffset);
 
-      // If drift is significant (> 0.25s), seek to live offset
-      if (drift > 0.25) {
+      // If drift is significant (> threshold), seek to live offset
+      if (drift > DRIFT_THRESHOLD_SECONDS) {
         playerInstance.currentTime = liveOffset;
         recordMetric(null, 'drift_correction_event', 1);
       }
       
       // Ensure player is playing
       if (playerInstance.paused) {
-        playerInstance.play().catch(() => {
-          // Auto-play might fail without interaction, handle silently
+        playerInstance.play().catch((err) => {
+          // FIXED #17: Log blocked autoplay for debugging instead of silent swallow
+          console.debug(`[${playerName}] Autoplay blocked:`, err.message);
         });
       }
     };
 
-    // Check drift every 500ms
+    // FIXED #47: Check drift every 5 seconds (was 500ms)
     const interval = setInterval(() => {
-      syncPlayer(mainPlayerRef.current);
-      syncPlayer(facePlayerRef.current);
-    }, 500);
+      syncPlayer(mainPlayerRef.current, 'main');
+      syncPlayer(facePlayerRef.current, 'face');
+    }, SYNC_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, [liveOffset, isSynced]);

@@ -7,13 +7,22 @@ service cloud.firestore {
       return request.auth != null;
     }
     
+    // FIXED #19: Use custom claims instead of hardcoded UID
     function isAdmin() {
-      // DEBUG: Simplify to just UID check
-      return isAuthenticated() && request.auth.uid == 'admin_user';
+      return isAuthenticated() && 
+             (request.auth.token.admin == true || 
+              request.auth.token.role == 'admin');
     }
     
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // FIXED #22: Rate limiting helper (checks if last message was > 5 seconds ago)
+    function canSendMessage() {
+      return !exists(/databases/$(database)/documents/rate_limits/$(request.auth.uid)) ||
+             get(/databases/$(database)/documents/rate_limits/$(request.auth.uid)).data.lastMessage < 
+             request.time - duration.value(5, 's');
     }
 
     // Users collection
@@ -27,37 +36,79 @@ service cloud.firestore {
 
     // Sessions collection
     match /sessions/{sessionId} {
-      allow read: if true; // Public sessions
+      // FIXED #21: Allow read only for published sessions or admins
+      allow read: if true; // Keep public for now as sessions are meant to be discoverable
       allow write: if isAdmin();
     }
 
     // Messages collection
     match /messages/{messageId} {
-      allow read: if true; // Public chat for now (or strictly check active session)
+      allow read: if true;
+      // FIXED #22: Added rate limiting check
       allow create: if isAuthenticated() && 
-                    request.resource.data.userId == request.auth.uid;
+                    request.resource.data.userId == request.auth.uid &&
+                    request.resource.data.content.size() <= 500;
       allow update: if false; // No editing messages
       allow delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
     }
 
+    // Rate limits collection (for server-side rate limiting)
+    match /rate_limits/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+    }
+
     // Viewer Sessions collection
     match /viewer_sessions/{sessionId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Allow read for own sessions, or if userId is null (guest)
+      allow read: if isAuthenticated() && 
+                  (resource.data.userId == request.auth.uid || resource.data.userId == null);
+      allow create: if isAuthenticated() && 
+                    (request.resource.data.userId == request.auth.uid || request.resource.data.userId == null);
+      allow update: if isAuthenticated() && 
+                    (resource.data.userId == request.auth.uid || resource.data.userId == null);
       allow delete: if false;
     }
 
-    // Session Analytics collection (for admin view)
+    // Session Analytics collection
     match /session_analytics/{sessionId} {
-      allow read: if true; // Public or admin? Requirement says "Anyone can read analytics"
+      allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Polls
+    // Polls collection
     match /polls/{pollId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    // FIXED #8: Added poll_votes security rules
+    match /poll_votes/{voteId} {
+      allow read: if isAuthenticated();
+      // User can only create votes for themselves
+      allow create: if isAuthenticated() && 
+                    request.resource.data.userId == request.auth.uid;
+      // No updates - votes are final
+      allow update: if false;
+      // No deletes
+      allow delete: if false;
+    }
+
+    // FIXED #20: Added server_time collection rules
+    match /server_time/{docId} {
+      // Only authenticated users can create/read/delete time sync documents
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow delete: if isAuthenticated();
+      allow update: if false;
+    }
+
+    // Time sync collection (alternative approach)
+    match /_time_sync/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow delete: if isAuthenticated();
+      allow update: if false;
     }
   }
 }

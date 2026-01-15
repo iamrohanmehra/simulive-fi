@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   collection, 
   query, 
@@ -39,8 +39,34 @@ export default function useChat(sessionId: string): UseChatReturn {
   const [lastMessageTime, setLastMessageTime] = useState(0);
   
 
-  // Cache for simple deduping of initial loads per session
-  const cacheRef = useState<Record<string, { messages: Message[], timestamp: number }>>({})[0];
+  // FIXED #13: Use useRef for cache and limit size to prevent memory leak
+  const cacheRef = useRef<Record<string, { messages: Message[], timestamp: number }>>({});
+  
+  // Clear old cache entries periodically
+  useEffect(() => {
+    const cleanup = setInterval(() => {
+      const now = Date.now();
+      const maxCacheAge = 60000; // 1 minute
+      const maxCacheSize = 10;
+      
+      const entries = Object.entries(cacheRef.current);
+      // Remove old entries
+      entries.forEach(([key, value]) => {
+        if (now - value.timestamp > maxCacheAge) {
+          delete cacheRef.current[key];
+        }
+      });
+      // If still too large, remove oldest
+      if (Object.keys(cacheRef.current).length > maxCacheSize) {
+        const sorted = entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+        sorted.slice(0, sorted.length - maxCacheSize).forEach(([key]) => {
+          delete cacheRef.current[key];
+        });
+      }
+    }, 30000);
+    
+    return () => clearInterval(cleanup);
+  }, []);
 
   useEffect(() => {
     if (!sessionId) {
@@ -52,7 +78,7 @@ export default function useChat(sessionId: string): UseChatReturn {
 
     // Check cache
     const now = Date.now();
-    const cached = cacheRef[sessionId];
+    const cached = cacheRef.current[sessionId];
     if (cached && (now - cached.timestamp < 10000)) { // 10s cache
       setMessages(cached.messages);
       setLoading(false);
@@ -103,7 +129,7 @@ export default function useChat(sessionId: string): UseChatReturn {
           const merged = [...newMessages, ...historyMessages];
           
           // Update cache
-          cacheRef[sessionId] = { 
+          cacheRef.current[sessionId] = { 
             messages: merged, 
             timestamp: Date.now() 
           };
@@ -151,7 +177,21 @@ export default function useChat(sessionId: string): UseChatReturn {
       const sendTrace = startTrace('message_send_time');
       setLastMessageTime(now);
       
-      const messageData: any = {
+      // FIXED #34: Use proper interface instead of any
+      interface CreateMessageData {
+        sessionId: string;
+        userId: string;
+        userName: string;
+        userAvatar: string | null;
+        content: string;
+        messageType: Message['messageType'];
+        isPinned: boolean;
+        isDeleted: boolean;
+        createdAt: ReturnType<typeof serverTimestamp>;
+        targetUserId?: string;
+      }
+      
+      const messageData: CreateMessageData = {
         sessionId,
         userId: user.uid,
         userName: user.displayName || 'Anonymous',

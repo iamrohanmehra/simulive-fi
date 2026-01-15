@@ -3,8 +3,8 @@ import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { 
   connectFirestoreEmulator, 
   initializeFirestore, 
-  CACHE_SIZE_UNLIMITED,
-  enableMultiTabIndexedDbPersistence
+  persistentLocalCache,
+  persistentMultipleTabManager
 } from 'firebase/firestore';
 
 import { getStorage } from 'firebase/storage';
@@ -25,32 +25,23 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firebase services
 export const auth = getAuth(app);
 
-// Initialize Firestore with unlimited cache
+// FIXED #44: Use new persistence API instead of deprecated enableMultiTabIndexedDbPersistence
+// Initialize Firestore with persistent cache and multi-tab support
 export const db = initializeFirestore(app, {
-  cacheSizeBytes: CACHE_SIZE_UNLIMITED
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
 });
-
-// Enable Offline Persistence
-try {
-  // Try multi-tab persistence first
-  enableMultiTabIndexedDbPersistence(db).catch((err) => {
-      if (err.code === 'failed-precondition') {
-          console.warn('Persistence failed: Multiple tabs open');
-      } else if (err.code === 'unimplemented') {
-          console.warn('Browser does not support persistence');
-      }
-  });
-} catch (err) {
-  console.error("Persistence init error:", err);
-}
 
 export const storage = getStorage(app);
 export const perf = getPerformance(app);
 
-// Connect to emulators in development
-if (import.meta.env.DEV) {
+// FIXED #15: Use explicit emulator flag instead of DEV check
+// Connect to emulators only when explicitly enabled
+if (import.meta.env.VITE_USE_EMULATOR === 'true') {
   connectAuthEmulator(auth, 'http://localhost:9099');
   connectFirestoreEmulator(db, 'localhost', 8080);
 }
 
 export { app };
+

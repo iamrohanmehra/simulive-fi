@@ -1,4 +1,4 @@
-import { useState, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Plus, Trash2, Loader2, BarChart2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
@@ -210,4 +210,6 @@ const PollCreator = forwardRef<PollCreatorRef, PollCreatorProps>(({ sessionId, o
 
 PollCreator.displayName = 'PollCreator';
 
-export default PollCreator;
+// FIXED #26: Add React.memo for performance optimization
+export default React.memo(PollCreator);
+

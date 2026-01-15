@@ -58,12 +58,13 @@ function PollVoteCard({ poll, userId }: PollVoteCardProps) {
       await runTransaction(db, async (transaction) => {
         // 1. Create vote document
         const voteRef = doc(pollVotesCollection);
+        // FIXED: Remove any cast, use proper PollVote-like structure
         transaction.set(voteRef, {
           pollId: poll.id,
           userId: userId,
           selectedOptionId: selectedOptionId,
           votedAt: serverTimestamp(),
-        } as any);
+        });
 
         // 2. Update poll document vote counts
         // We assume the poll document ref is known. We query it by ID.

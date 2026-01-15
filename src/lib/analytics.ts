@@ -1,7 +1,8 @@
-import { getAnalytics, logEvent as firebaseLogEvent } from 'firebase/analytics';
+import { getAnalytics, logEvent as firebaseLogEvent, type Analytics } from 'firebase/analytics';
 import { app } from './firebase';
 
-let analytics: any = null;
+// FIXED #33: Use proper Analytics type instead of any
+let analytics: Analytics | null = null;
 
 if (import.meta.env.PROD) {
   analytics = getAnalytics(app);
